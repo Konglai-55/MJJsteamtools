@@ -1,0 +1,73 @@
+<UserControl x:Class="SteamLuaManager.Views.AboutView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
+        Background="Transparent"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
+        RenderOptions.ClearTypeHint="Enabled"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True">
+
+    <Grid Margin="22,18,22,20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="关于" Style="{StaticResource SteamPageTitleStyle}" Margin="0,0,0,14"/>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <Border Style="{StaticResource SteamCardBorderStyle}" Padding="28" MaxWidth="720"
+                    HorizontalAlignment="Stretch" VerticalAlignment="Top">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="116"/>
+                        <ColumnDefinition Width="1"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0" Width="88" Height="88" Background="Transparent"
+                            HorizontalAlignment="Left" VerticalAlignment="Top">
+                        <Path Data="{StaticResource BrandMarkGeometry}"
+                              Width="88" Height="76" Stretch="Uniform"
+                              Fill="{DynamicResource SteamAccentBrush}"
+                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <Rectangle Grid.Column="1" Fill="{DynamicResource SteamDividerBrush}"/>
+
+                    <StackPanel Grid.Column="2" Margin="24,0,0,0">
+                        <TextBlock Text="MJJsteamtools" FontSize="23" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource SteamTextPrimaryBrush}"/>
+                        <TextBlock Text="STEAM LIBRARY MANAGEMENT TOOL" FontSize="10"
+                                   Margin="0,3,0,18" Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                        <TextBlock Text="用于搜索 Steam 游戏、导入 Lua 清单、维护本地游戏库与管理辅助工具。"
+                                   Style="{StaticResource SteamPageSubtitleStyle}" LineHeight="21"/>
+                        <TextBlock Text="当前适配 OpenSteamTool；此版本为 MJJsteamtools 自有分叉。"
+                                   Style="{StaticResource SteamPageSubtitleStyle}" LineHeight="21"/>
+                        <TextBlock Text="by 恐来55 from DreamPixel studio"
+                                   Margin="0,10,0,0" FontSize="12"
+                                   Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,18,0,0">
+                            <Border Background="#182E3E" BorderBrush="#31526A" BorderThickness="1"
+                                    CornerRadius="3" Padding="10,6" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding VersionText}" FontSize="12"
+                                           Foreground="{DynamicResource SteamAccentBrush}"/>
+                            </Border>
+                            <Button x:Name="CheckUpdateButton" Margin="10,0,0,0" Padding="12,6"
+                                    Click="CheckUpdateButton_Click" Cursor="Hand">
+                                <StackPanel Orientation="Horizontal">
+                                    <ui:FontIcon Glyph="&#xE895;" FontSize="13" Margin="0,0,7,0"/>
+                                    <TextBlock Text="检查更新"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                        <TextBlock x:Name="UpdateStatusText" Margin="0,9,0,0" FontSize="11"
+                                   Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

@@ -1,0 +1,259 @@
+<UserControl x:Class="SteamLuaManager.Views.CloudSyncRescueView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
+             Loaded="UserControl_Loaded"
+             Background="Transparent"
+             TextOptions.TextFormattingMode="Display"
+             TextOptions.TextRenderingMode="ClearType"
+             RenderOptions.ClearTypeHint="Enabled"
+             UseLayoutRounding="True"
+             SnapsToDevicePixels="True">
+    <Grid Margin="24,18,24,22">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Button Width="42" Height="38" Padding="0" Margin="0,0,12,0"
+                    ToolTip="返回实用工具" Click="BackButton_Click">
+                <ui:FontIcon Glyph="&#xE72B;" FontSize="16"/>
+            </Button>
+            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <TextBlock Text="Steam 云同步急救" Style="{StaticResource SteamPageTitleStyle}"/>
+                <TextBlock Text="读取 Steam 官方云日志，定位冲突游戏；所有修复都先备份，再让 Steam 重新核对。"
+                           Margin="0,3,0,0" FontSize="12"
+                           Foreground="{DynamicResource SteamTextSecondaryBrush}"/>
+            </StackPanel>
+            <Button Grid.Column="2" Content="备份记录" Margin="0,0,8,0"
+                    Style="{StaticResource SteamSecondaryButtonStyle}" Padding="14,8"
+                    Click="OpenBackupFolderButton_Click"/>
+            <Button x:Name="ScanButton" Grid.Column="3" Content="重新检测"
+                    Style="{StaticResource SteamPrimaryButtonStyle}" MinWidth="108"
+                    Padding="16,8" Click="ScanButton_Click"/>
+        </Grid>
+
+        <Grid Grid.Row="1" Margin="0,18,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Background="{DynamicResource SteamSurfaceBrush}" BorderBrush="#31485D" BorderThickness="1"
+                    CornerRadius="6" Padding="16,13">
+                <StackPanel>
+                    <TextBlock Text="当前异常" FontSize="11"
+                               Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                    <TextBlock x:Name="IssueCountText" Text="—" Margin="0,5,0,0"
+                               FontSize="22" FontWeight="SemiBold"
+                               Foreground="{DynamicResource SteamTextPrimaryBrush}"/>
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="2" Background="{DynamicResource SteamSurfaceBrush}" BorderBrush="#31485D" BorderThickness="1"
+                    CornerRadius="6" Padding="16,13">
+                <StackPanel>
+                    <TextBlock Text="冲突文件" FontSize="11"
+                               Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                    <TextBlock x:Name="ConflictCountText" Text="—" Margin="0,5,0,0"
+                               FontSize="22" FontWeight="SemiBold" Foreground="#F0B83F"/>
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="4" Background="{DynamicResource SteamSurfaceBrush}" BorderBrush="#31485D" BorderThickness="1"
+                    CornerRadius="6" Padding="16,13">
+                <StackPanel>
+                    <TextBlock Text="日志中已恢复" FontSize="11"
+                               Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                    <TextBlock x:Name="ResolvedCountText" Text="—" Margin="0,5,0,0"
+                               FontSize="22" FontWeight="SemiBold" Foreground="#68C482"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Border Grid.Row="2" Margin="0,12,0,12" Padding="13,10"
+                Background="#172738" BorderBrush="#29445A" BorderThickness="1" CornerRadius="5">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <ui:ProgressRing x:Name="ScanProgressRing" Width="17" Height="17"
+                                 IsActive="False" Visibility="Collapsed" Margin="0,0,10,0"/>
+                <ui:FontIcon x:Name="StatusIcon" Glyph="&#xE946;" FontSize="14"
+                             Margin="0,1,9,0" Foreground="#69A9D0"/>
+                <TextBlock x:Name="StatusText" Grid.Column="1"
+                           Text="点击重新检测，读取 Steam 云同步状态。"
+                           FontSize="11" TextWrapping="Wrap" VerticalAlignment="Center"
+                           Foreground="{DynamicResource SteamTextSecondaryBrush}"/>
+                <Button Grid.Column="2" Content="查看原始日志" Padding="10,4" Margin="10,-4,-5,-4"
+                        Background="Transparent" BorderThickness="0"
+                        Foreground="#69A9D0" Click="OpenLogFolderButton_Click"/>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="3">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel>
+                    <Border x:Name="HealthyPanel" Visibility="Collapsed"
+                            Margin="0,10,0,0" Padding="24,28"
+                            Background="#16252F" BorderBrush="#315646" BorderThickness="1"
+                            CornerRadius="7">
+                        <StackPanel HorizontalAlignment="Center">
+                            <Border Width="54" Height="54" Background="#183A30" CornerRadius="27">
+                                <ui:FontIcon Glyph="&#xE73E;" FontSize="24" Foreground="#68C482"
+                                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock Text="当前没有未解决的云同步异常" Margin="0,14,0,5"
+                                       FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center"
+                                       Foreground="{DynamicResource SteamTextPrimaryBrush}"/>
+                            <TextBlock Text="已发生但后来同步成功的问题不会继续显示。"
+                                       FontSize="12" HorizontalAlignment="Center"
+                                       Foreground="{DynamicResource SteamTextSecondaryBrush}"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border x:Name="ErrorPanel" Visibility="Collapsed"
+                            Margin="0,10,0,0" Padding="18,16"
+                            Background="#302126" BorderBrush="#70414A" BorderThickness="1"
+                            CornerRadius="7">
+                        <StackPanel Orientation="Horizontal">
+                            <ui:FontIcon Glyph="&#xE783;" FontSize="18" Foreground="#F06A6A" Margin="0,0,12,0"/>
+                            <TextBlock x:Name="ErrorText" TextWrapping="Wrap" FontSize="13"
+                                       Foreground="{DynamicResource SteamTextPrimaryBrush}"/>
+                        </StackPanel>
+                    </Border>
+
+                    <ItemsControl x:Name="IssueItemsControl" ItemsSource="{Binding Issues}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Margin="0,0,0,10" Padding="18,16"
+                                        Background="{DynamicResource SteamSurfaceBrush}" BorderBrush="#31485D" BorderThickness="1"
+                                        CornerRadius="7">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding GameName}" FontSize="17" FontWeight="SemiBold"
+                                                               Foreground="{DynamicResource SteamTextPrimaryBrush}"/>
+                                                    <Border Margin="10,0,0,0" Padding="8,2" CornerRadius="8"
+                                                            Background="{Binding RiskColor}">
+                                                        <TextBlock Text="{Binding RiskText}" FontSize="10" Foreground="#111820"/>
+                                                    </Border>
+                                                    <Border Margin="7,0,0,0" Padding="8,2" CornerRadius="8"
+                                                            Background="#24405A"
+                                                            Visibility="{Binding IsImportedGame, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                        <TextBlock Text="一键入库配置" FontSize="10" Foreground="#8DCCF4"/>
+                                                    </Border>
+                                                    <Border Margin="7,0,0,0" Padding="8,2" CornerRadius="8"
+                                                            Background="#5A2F36"
+                                                            Visibility="{Binding IsRebound, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                        <TextBlock Text="云错误回弹" FontSize="10" Foreground="#FF9CA5"/>
+                                                    </Border>
+                                                </StackPanel>
+                                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                                    <TextBlock Text="{Binding AppIdText}" FontSize="11"
+                                                               Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                                                    <TextBlock Text="  ·  " FontSize="11"
+                                                               Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                                                    <TextBlock Text="{Binding KindText}" FontSize="11"
+                                                               Foreground="#69A9D0"/>
+                                                    <TextBlock Text="  ·  " FontSize="11"
+                                                               Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                                                    <TextBlock Text="{Binding LastErrorTimeText}" FontSize="11"
+                                                               Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                            <Button Grid.Column="1" Tag="{Binding}" Content="从库里打开"
+                                                    Style="{StaticResource SteamSecondaryButtonStyle}"
+                                                    Padding="12,7" Click="OpenGameButton_Click"/>
+                                        </Grid>
+
+                                        <Border Grid.Row="1" Margin="0,13,0,0" Padding="13,10"
+                                                Background="#131C27" CornerRadius="5">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Summary}" FontSize="12"
+                                                           Foreground="{DynamicResource SteamTextPrimaryBrush}"/>
+                                                <TextBlock Text="{Binding SuggestedAction}" Margin="0,4,0,0"
+                                                           FontSize="11" TextWrapping="Wrap"
+                                                           Foreground="{DynamicResource SteamTextSecondaryBrush}"/>
+                                                <TextBlock Text="{Binding LastError}" Margin="0,7,0,0"
+                                                           FontSize="10" TextWrapping="Wrap"
+                                                           Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <ItemsControl Grid.Row="2" Margin="0,12,0,0"
+                                                      ItemsSource="{Binding ConflictFiles}"
+                                                      Visibility="{Binding HasConflictFiles, Converter={StaticResource BoolToVisibilityConverter}}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid Margin="0,0,0,6">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <ui:FontIcon Glyph="&#xE8A5;" FontSize="13" Margin="0,1,9,0"
+                                                                     Foreground="#F0B83F"/>
+                                                        <TextBlock Grid.Column="1" Text="{Binding DisplayPath}"
+                                                                   FontFamily="Consolas" FontSize="11"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   Foreground="{DynamicResource SteamTextSecondaryBrush}"/>
+                                                        <TextBlock Grid.Column="2" Text="{Binding TypeText}" Margin="12,0,0,0"
+                                                                   FontSize="10" Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+
+                                        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right"
+                                                    Margin="0,12,0,0">
+                                            <Button Tag="{Binding}" Content="加入存档保险箱" Margin="0,0,8,0"
+                                                    Style="{StaticResource SteamSecondaryButtonStyle}"
+                                                    Padding="13,7" Click="OpenSaveVaultButton_Click"
+                                                    Visibility="{Binding ShouldOfferSaveVault, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                            <Button Tag="{Binding}" Content="创建安全备份" Margin="0,0,8,0"
+                                                    Style="{StaticResource SteamSecondaryButtonStyle}"
+                                                    Padding="13,7" Click="BackupButton_Click"/>
+                                            <Button Tag="{Binding}" Content="安全重建同步状态"
+                                                    Style="{StaticResource SteamPrimaryButtonStyle}"
+                                                    Padding="15,7" Margin="0,0,8,0" Click="RepairButton_Click"
+                                                    Visibility="{Binding CanResetMetadata, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                            <Button Tag="{Binding}" Content="一键关闭云同步"
+                                                    Style="{StaticResource SteamPrimaryButtonStyle}"
+                                                    Padding="15,7" Click="DisableCloudButton_Click"
+                                                    Visibility="{Binding ShouldRecommendDisableCloud, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</UserControl>

@@ -1,0 +1,9 @@
+name = "mjjsteamtools-telemetry"
+main = "src/worker.js"
+compatibility_date = "2026-08-01"
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "mjjsteamtools-telemetry"
+database_id = "e4b249f9-1450-4b5c-b191-051d421eab53"

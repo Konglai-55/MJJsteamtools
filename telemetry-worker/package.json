@@ -1,0 +1,16 @@
+{
+  "name": "mjjsteamtools-telemetry",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:init": "wrangler d1 execute mjjsteamtools-telemetry --remote --file=./schema.sql",
+    "admin:rotate": "node ./scripts/rotate-admin-token.mjs"
+  },
+  "devDependencies": {
+    "undici": "^7.29.0",
+    "wrangler": "^4.30.0"
+  }
+}

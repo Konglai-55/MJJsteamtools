@@ -1,0 +1,73 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetPlatformVersion>10.0.18362.0</TargetPlatformVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>MJJsteamtools</AssemblyName>
+    <RootNamespace>SteamLuaManager</RootNamespace>
+    <ApplicationIcon>Assets\brand-app.ico</ApplicationIcon>
+    <Title>MJJsteamtools</Title>
+    <Product>MJJsteamtools</Product>
+    <Company>MJJsteamtools</Company>
+    <Version>2.7.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\brand-app.ico" />
+    <Resource Include="Assets\brand-app.png" />
+    <Resource Include="Assets\brand-logo.png" />
+    <Resource Include="Assets\brand-mark.png" />
+    <Resource Include="Assets\brand-mark.svg" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <PackageReference Include="HtmlAgilityPack" Version="1.12.4" />
+    <PackageReference Include="iNKORE.UI.WPF" Version="1.2.8" />
+    <PackageReference Include="iNKORE.UI.WPF.Modern" Version="0.10.2.1" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4078.44" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="SvcMonitor\**\*" />
+    <Compile Remove="installer\Bootstrapper\**\*" />
+    <Compile Remove="artifacts\**\*.cs" />
+    <Page Remove="artifacts\**\*.xaml" />
+    <ApplicationDefinition Remove="artifacts\**\*.xaml" />
+    <None Remove="installer\Bootstrapper\**\*" />
+    <Compile Remove=".codex-build\**\*" />
+    <Compile Remove=".codex-obj\**\*" />
+    <EmbeddedResource Remove="SvcMonitor\**\*" />
+    <EmbeddedResource Remove=".codex-build\**\*" />
+    <EmbeddedResource Remove=".codex-obj\**\*" />
+    <None Remove="SvcMonitor\**\*" />
+    <None Remove=".codex-build\**\*" />
+    <None Remove=".codex-obj\**\*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\SvcMonitor.zip" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="telemetry-endpoint.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
+  <Target Name="BuildSvcMonitorForEmbed" BeforeTargets="BeforeBuild"
+          Condition="'$(SkipSvcMonitorBuild)' != 'true'">
+    <Exec Command="dotnet publish $(ProjectDir)SvcMonitor\SvcMonitor.csproj -c $(Configuration) -o $(ProjectDir)Resources\SvcMonitorPublish" />
+    <ZipDirectory SourceDirectory="$(ProjectDir)Resources\SvcMonitorPublish"
+                  DestinationFile="$(ProjectDir)Resources\SvcMonitor.zip"
+                  Overwrite="true" />
+    <RemoveDir Directories="$(ProjectDir)Resources\SvcMonitorPublish" />
+  </Target>
+
+</Project>

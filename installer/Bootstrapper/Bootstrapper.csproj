@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetPlatformVersion>10.0.18362.0</TargetPlatformVersion>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>MJJsteamtools-Setup</AssemblyName>
+    <RootNamespace>MJJsteamtools.Setup</RootNamespace>
+    <ApplicationIcon>../../Assets/brand-app.ico</ApplicationIcon>
+    <Version>2.7.0</Version>
+  </PropertyGroup>
+</Project>

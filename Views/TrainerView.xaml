@@ -1,0 +1,778 @@
+<UserControl x:Class="SteamLuaManager.Views.TrainerView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
+        Background="{DynamicResource SteamContentBrush}"
+        Foreground="{DynamicResource SteamTextPrimaryBrush}"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
+        RenderOptions.ClearTypeHint="Enabled"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True">
+
+    <UserControl.Resources>
+        <Style x:Key="TrainerNavTabStyle" TargetType="RadioButton">
+            <Setter Property="MinHeight" Value="48"/>
+            <Setter Property="Padding" Value="16,0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource SteamTextSecondaryBrush}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Grid>
+                            <Border x:Name="TabBackground" Background="{TemplateBinding Background}"
+                                    BorderBrush="Transparent" BorderThickness="1"
+                                    CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                            </Border>
+                            <Border x:Name="ActiveBar" Height="3" Width="54" CornerRadius="2"
+                                    Background="{DynamicResource SteamAccentBrush}"
+                                    VerticalAlignment="Bottom" Visibility="Collapsed"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="TabBackground" Property="Background" Value="#1D2B3A"/>
+                                <Setter Property="Foreground" Value="{DynamicResource SteamTextPrimaryBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="TabBackground" Property="Background" Value="#223449"/>
+                                <Setter TargetName="ActiveBar" Property="Visibility" Value="Visible"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="TabBackground" Property="BorderBrush" Value="{DynamicResource SteamAccentBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="TrainerRowCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="#16202D"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="14"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#1C2A39"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="TrainerRecommendCardStyle" TargetType="Border">
+            <Setter Property="Width" Value="210"/>
+            <Setter Property="Height" Value="226"/>
+            <Setter Property="Background" Value="#16202D"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Margin" Value="0,0,12,0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#1C2A39"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="TrainerToggleStyle" TargetType="ToggleButton">
+            <Setter Property="Width" Value="54"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Focusable" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Grid Width="54" Height="28">
+                            <Border x:Name="Track" Background="{DynamicResource SteamShellBrush}" CornerRadius="14"
+                                    BorderBrush="#314356" BorderThickness="1"/>
+                            <Ellipse x:Name="Thumb" Width="22" Height="22" Margin="3,0,0,0"
+                                     HorizontalAlignment="Left" Fill="#8D99A5"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Track" Property="Background" Value="#153A58"/>
+                                <Setter TargetName="Track" Property="BorderBrush" Value="#267DB5"/>
+                                <Setter TargetName="Thumb" Property="Fill" Value="{DynamicResource SteamAccentBrush}"/>
+                                <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right"/>
+                                <Setter TargetName="Thumb" Property="Margin" Value="0,0,3,0"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Track" Property="BorderBrush" Value="{DynamicResource SteamAccentBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Track" Property="BorderBrush" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="TrainerIconButtonStyle" TargetType="Button" BasedOn="{StaticResource SteamSecondaryButtonStyle}">
+            <Setter Property="Width" Value="40"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="MinHeight" Value="40"/>
+            <Setter Property="Padding" Value="0"/>
+        </Style>
+
+        <DataTemplate x:Key="SearchResultTemplate">
+            <Border Style="{StaticResource TrainerRowCardStyle}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="108"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Width="108" Height="64" CornerRadius="6" ClipToBounds="True"
+                            Background="{DynamicResource SteamShellBrush}" VerticalAlignment="Center">
+                        <Grid>
+                            <ui:FontIcon Glyph="&#xE7FC;" FontSize="24" Foreground="#486075"
+                                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <Image Source="{Binding CoverUrl}" Stretch="UniformToFill"/>
+                        </Grid>
+                    </Border>
+                    <StackPanel Grid.Column="1" Margin="15,0,16,0" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding GameName}" FontSize="15" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource SteamTextPrimaryBrush}"
+                                   TextTrimming="CharacterEllipsis" ToolTip="{Binding GameName}"/>
+                        <TextBlock Text="FLiNG Trainer" FontSize="11" Margin="0,4,0,0"
+                                   Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,7,0,0">
+                            <Border Background="{DynamicResource SteamSurfaceBrush}" CornerRadius="4" Padding="7,3" Margin="0,0,7,0">
+                                <TextBlock Text="{Binding UpdateDate}" FontSize="10"
+                                           Foreground="{DynamicResource SteamTextSecondaryBrush}"/>
+                            </Border>
+                            <Border Background="#17364B" CornerRadius="4" Padding="7,3"
+                                    Visibility="{Binding CheatCount, Converter={StaticResource NonZeroToVisibilityConverter}}">
+                                <TextBlock FontSize="10" Foreground="{DynamicResource SteamAccentBrush}">
+                                    <Run Text="{Binding CheatCount}"/><Run Text=" 项功能"/>
+                                </TextBlock>
+                            </Border>
+                        </StackPanel>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Width="116" VerticalAlignment="Center">
+                        <Button Command="{Binding DataContext.DownloadCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                CommandParameter="{Binding}" Height="40" MinHeight="40"
+                                Style="{StaticResource SteamPrimaryButtonStyle}"
+                                IsEnabled="{Binding IsDownloading, Converter={StaticResource BoolInvertConverter}}"
+                                AutomationProperties.Name="下载或打开此修改器">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <ui:FontIcon Glyph="{Binding IsDownloaded, Converter={StaticResource BoolToDownloadIconConverter}}"
+                                             FontSize="14" Margin="0,0,6,0"/>
+                                <TextBlock Text="{Binding IsDownloaded, Converter={StaticResource BoolToDownloadTextConverter}}"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <ProgressBar Height="3" Margin="0,7,0,0" Minimum="0" Maximum="100"
+                                     Value="{Binding DownloadProgress}" Foreground="{DynamicResource SteamAccentBrush}"
+                                     Background="{DynamicResource SteamShellBrush}"
+                                     Visibility="{Binding IsDownloading, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="RecommendationTemplate">
+            <Border Style="{StaticResource TrainerRecommendCardStyle}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="112"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Border Grid.Row="0" Background="{DynamicResource SteamShellBrush}" CornerRadius="8,8,0,0" ClipToBounds="True">
+                        <Grid>
+                            <ui:FontIcon Glyph="&#xE7FC;" FontSize="30" Foreground="#486075"
+                                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <Image Source="{Binding CoverUrl}" Stretch="UniformToFill"/>
+                        </Grid>
+                    </Border>
+                    <StackPanel Grid.Row="1" Margin="13,11,13,6">
+                        <TextBlock Text="{Binding GameName}" FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource SteamTextPrimaryBrush}"
+                                   TextTrimming="CharacterEllipsis" TextWrapping="Wrap" MaxHeight="38"
+                                   ToolTip="{Binding GameName}"/>
+                        <TextBlock Text="FLiNG Trainer" FontSize="10" Margin="0,4,0,0"
+                                   Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                    </StackPanel>
+                    <Button Grid.Row="2" Margin="12,0,12,12" Height="38" MinHeight="38"
+                            Style="{StaticResource SteamPrimaryButtonStyle}"
+                            Command="{Binding DataContext.DownloadCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                            CommandParameter="{Binding}"
+                            IsEnabled="{Binding IsDownloading, Converter={StaticResource BoolInvertConverter}}"
+                            AutomationProperties.Name="下载或打开推荐修改器">
+                        <Grid>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <ui:FontIcon Glyph="{Binding IsDownloaded, Converter={StaticResource BoolToDownloadIconConverter}}"
+                                             FontSize="13" Margin="0,0,6,0"/>
+                                <TextBlock Text="{Binding IsDownloaded, Converter={StaticResource BoolToDownloadTextConverter}}"/>
+                            </StackPanel>
+                            <ui:ProgressRing IsActive="{Binding IsDownloading}" Width="15" Height="15"
+                                             HorizontalAlignment="Right"
+                                             Visibility="{Binding IsDownloading, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                        </Grid>
+                    </Button>
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="DownloadedTrainerTemplate">
+            <Border Style="{StaticResource TrainerRowCardStyle}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="52"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Width="48" Height="48" CornerRadius="7" Background="#17364B">
+                        <ui:FontIcon Glyph="&#xE7FC;" FontSize="22" Foreground="{DynamicResource SteamAccentBrush}"
+                                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <StackPanel Grid.Column="1" Margin="14,0,16,0" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding DisplayName}" FontSize="14" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource SteamTextPrimaryBrush}"
+                                   TextTrimming="CharacterEllipsis" ToolTip="{Binding DisplayName}"/>
+                        <TextBlock Text="{Binding FileName}" FontSize="10" Margin="0,4,0,0"
+                                   Foreground="{DynamicResource SteamTextTertiaryBrush}"
+                                   TextTrimming="CharacterEllipsis" ToolTip="{Binding FilePath}"/>
+                    </StackPanel>
+                    <Button Grid.Column="2" Height="40" MinHeight="40" MinWidth="92" Margin="0,0,8,0"
+                            Style="{StaticResource SteamPrimaryButtonStyle}"
+                            Command="{Binding DataContext.OpenDownloadedFileCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                            CommandParameter="{Binding}" AutomationProperties.Name="启动修改器">
+                        <StackPanel Orientation="Horizontal">
+                            <ui:FontIcon Glyph="&#xE768;" FontSize="13" Margin="0,0,6,0"/>
+                            <TextBlock Text="启动"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Grid.Column="3" Style="{StaticResource TrainerIconButtonStyle}"
+                            Foreground="#FF9A96" BorderBrush="#70434A" Background="#38262D"
+                            Command="{Binding DataContext.DeleteDownloadedFileCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                            CommandParameter="{Binding}" ToolTip="删除本地修改器"
+                            AutomationProperties.Name="删除本地修改器">
+                        <ui:FontIcon Glyph="&#xE74D;" FontSize="14"/>
+                    </Button>
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="TrainerBindingTemplate">
+            <Border Style="{StaticResource TrainerRowCardStyle}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="48"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <ToggleButton Grid.RowSpan="2" IsChecked="{Binding IsEnabled, Mode=TwoWay}"
+                                  Style="{StaticResource TrainerToggleStyle}" Margin="0,0,15,0"
+                                  VerticalAlignment="Center" Click="BindingCheckBox_Click"
+                                  ToolTip="启用或暂停此自动启动绑定"
+                                  AutomationProperties.Name="启用或暂停游戏修改器绑定"/>
+                    <Border Grid.Column="1" Grid.RowSpan="2" Width="44" Height="44" CornerRadius="7"
+                            Background="#17364B" VerticalAlignment="Center">
+                        <ui:FontIcon Glyph="&#xE7FC;" FontSize="20" Foreground="{DynamicResource SteamAccentBrush}"
+                                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <StackPanel Grid.Column="2" Margin="13,0,18,0" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding GameName}" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource SteamTextPrimaryBrush}"
+                                       TextTrimming="CharacterEllipsis" ToolTip="{Binding GameName}"/>
+                            <Border CornerRadius="4" Padding="7,2" Margin="9,0,0,0">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Background" Value="#173D30"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsEnabled}" Value="False">
+                                                <Setter Property="Background" Value="#303844"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <Grid>
+                                    <TextBlock Text="已启用" FontSize="9" Foreground="{DynamicResource SteamGreenBrush}"
+                                               Visibility="{Binding IsEnabled, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                    <TextBlock Text="已暂停" FontSize="9" Foreground="#A8B3BE"
+                                               Visibility="{Binding IsEnabled, Converter={StaticResource InvertedBoolToVisibilityConverter}}"/>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                        <TextBlock Text="{Binding TrainerFileName}" FontSize="10" Margin="0,4,0,0"
+                                   Foreground="{DynamicResource SteamTextTertiaryBrush}"
+                                   TextTrimming="CharacterEllipsis" ToolTip="{Binding TrainerFilePath}"/>
+                    </StackPanel>
+                    <Button Grid.Column="3" Grid.RowSpan="2" Style="{StaticResource TrainerIconButtonStyle}"
+                            Margin="0,0,8,0" Command="{Binding DataContext.EditBindingCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                            CommandParameter="{Binding}" ToolTip="编辑绑定"
+                            AutomationProperties.Name="编辑游戏修改器绑定">
+                        <ui:FontIcon Glyph="&#xE70F;" FontSize="14"/>
+                    </Button>
+                    <Button Grid.Column="4" Grid.RowSpan="2" Style="{StaticResource TrainerIconButtonStyle}"
+                            Foreground="#FF9A96" BorderBrush="#70434A" Background="#38262D"
+                            Command="{Binding DataContext.RemoveBindingCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                            CommandParameter="{Binding}" ToolTip="删除绑定"
+                            AutomationProperties.Name="删除游戏修改器绑定">
+                        <ui:FontIcon Glyph="&#xE74D;" FontSize="14"/>
+                    </Button>
+                    <Border Grid.Row="1" Grid.Column="2" Background="#132B3B" CornerRadius="4"
+                            Padding="8,4" Margin="13,8,18,0" HorizontalAlignment="Left"
+                            Visibility="{Binding HasAutoKeys, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <StackPanel Orientation="Horizontal">
+                            <ui:FontIcon Glyph="&#xE73E;" FontSize="11" Foreground="{DynamicResource SteamAccentBrush}" Margin="0,0,6,0"/>
+                            <TextBlock Text="{Binding AutoKeysSummary}" FontSize="10" Foreground="#9CC9E4"
+                                       TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid Margin="24,18,24,20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,15">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+                <TextBlock Text="游戏修改器" Style="{StaticResource SteamPageTitleStyle}"/>
+                <TextBlock Text="查找、启动并为游戏绑定风灵月影修改器"
+                           Style="{StaticResource SteamPageSubtitleStyle}" Margin="0,4,0,0"/>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <Border Background="{DynamicResource SteamSurfaceBrush}" CornerRadius="7" Padding="11,7" Margin="0,0,8,0">
+                    <StackPanel Orientation="Horizontal">
+                        <ui:FontIcon Glyph="&#xE896;" FontSize="12" Foreground="{DynamicResource SteamAccentBrush}" Margin="0,0,7,0"/>
+                        <TextBlock FontSize="11" Foreground="{DynamicResource SteamTextSecondaryBrush}">
+                            <Run Text="{Binding DownloadedTrainers.Count, Mode=OneWay}"/><Run Text=" 个本地修改器"/>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+                <Border Background="{DynamicResource SteamSurfaceBrush}" CornerRadius="7" Padding="11,7">
+                    <StackPanel Orientation="Horizontal">
+                        <ui:FontIcon Glyph="&#xE8EF;" FontSize="12" Foreground="{DynamicResource SteamGreenBrush}" Margin="0,0,7,0"/>
+                        <TextBlock FontSize="11" Foreground="{DynamicResource SteamTextSecondaryBrush}">
+                            <Run Text="{Binding TrainerBindings.Count, Mode=OneWay}"/><Run Text=" 个自动绑定"/>
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Grid>
+
+        <Border Grid.Row="1" Background="#141E2A" CornerRadius="8" Padding="4" Margin="0,0,0,14">
+            <UniformGrid Columns="3">
+                <RadioButton GroupName="TrainerSections" Style="{StaticResource TrainerNavTabStyle}"
+                             IsChecked="{Binding IsShowingSearch}" Command="{Binding ShowSearchViewCommand}"
+                             AutomationProperties.Name="搜索修改器页面">
+                    <StackPanel Orientation="Horizontal">
+                        <ui:FontIcon Glyph="&#xE721;" FontSize="15" Margin="0,0,8,0"/>
+                        <TextBlock Text="发现修改器" FontSize="13" FontWeight="SemiBold"/>
+                    </StackPanel>
+                </RadioButton>
+                <RadioButton GroupName="TrainerSections" Style="{StaticResource TrainerNavTabStyle}"
+                             IsChecked="{Binding IsShowingDownloaded}" Command="{Binding ShowDownloadedViewCommand}"
+                             AutomationProperties.Name="已下载修改器页面">
+                    <StackPanel Orientation="Horizontal">
+                        <ui:FontIcon Glyph="&#xE896;" FontSize="15" Margin="0,0,8,0"/>
+                        <TextBlock Text="已下载" FontSize="13" FontWeight="SemiBold"/>
+                        <Border Background="#30475C" CornerRadius="8" Padding="6,1" Margin="8,0,0,0">
+                            <TextBlock Text="{Binding DownloadedTrainers.Count}" FontSize="9"/>
+                        </Border>
+                    </StackPanel>
+                </RadioButton>
+                <RadioButton GroupName="TrainerSections" Style="{StaticResource TrainerNavTabStyle}"
+                             IsChecked="{Binding IsShowingBinding}" Command="{Binding ShowBindingViewCommand}"
+                             AutomationProperties.Name="自动启动绑定页面">
+                    <StackPanel Orientation="Horizontal">
+                        <ui:FontIcon Glyph="&#xE8EF;" FontSize="15" Margin="0,0,8,0"/>
+                        <TextBlock Text="自动启动" FontSize="13" FontWeight="SemiBold"/>
+                        <Border Background="#30475C" CornerRadius="8" Padding="6,1" Margin="8,0,0,0">
+                            <TextBlock Text="{Binding TrainerBindings.Count}" FontSize="9"/>
+                        </Border>
+                    </StackPanel>
+                </RadioButton>
+            </UniformGrid>
+        </Border>
+
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                      Padding="0,0,12,0">
+            <Grid>
+                <StackPanel x:Name="SearchContentPanel"
+                            Visibility="{Binding IsShowingSearch, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <Border Background="{DynamicResource SteamSurfaceBrush}" CornerRadius="10" Padding="18" Margin="0,0,0,18">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="查找游戏修改器" FontSize="17" FontWeight="SemiBold"/>
+                                    <TextBlock Text="输入英文游戏名，支持模糊搜索，最多展示 10 条结果"
+                                               FontSize="11" Margin="0,4,0,0"
+                                               Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                                </StackPanel>
+                                <Border Grid.Column="1" Background="#132B3B" CornerRadius="5" Padding="9,5"
+                                        VerticalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="6" Height="6" Fill="{DynamicResource SteamAccentBrush}" Margin="0,0,7,0"/>
+                                        <TextBlock Text="来源：FLiNG Trainer" FontSize="10" Foreground="#9CC9E4"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                            <Grid Grid.Row="1" Margin="0,15,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0" Margin="0,0,8,0" Height="42"
+                                        Style="{StaticResource SteamSearchFieldBorderStyle}">
+                                    <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="32"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ui:FontIcon Grid.Column="0" Glyph="&#xE721;" FontSize="17"
+                                                 HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                 IsHitTestVisible="False" Foreground="#929AA3"/>
+                                    <ui:AutoSuggestBox x:Name="SearchBox" Grid.Column="1" Height="40" MinHeight="40"
+                                                       Style="{StaticResource SteamSearchSuggestStyle}"
+                                                       Text="{Binding SearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                       ToolTip="搜索游戏修改器，例如 Elden Ring"
+                                                       AutomationProperties.Name="搜索游戏修改器"
+                                                       QuerySubmitted="SearchBox_QuerySubmitted"
+                                                       HorizontalAlignment="Stretch"/>
+                                    </Grid>
+                                </Border>
+                                <Button Grid.Column="1" Command="{Binding SearchCommand}"
+                                        Style="{StaticResource SteamPrimaryButtonStyle}"
+                                        Height="42" MinHeight="42" MinWidth="104"
+                                        IsEnabled="{Binding IsSearching, Converter={StaticResource BoolInvertConverter}}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <ui:FontIcon Glyph="&#xE721;" FontSize="14" Margin="0,0,6,0"/>
+                                        <TextBlock Text="搜索"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Grid.Column="2" Command="{Binding ClearSearchCommand}"
+                                        Style="{StaticResource SteamSecondaryButtonStyle}"
+                                        Height="42" MinHeight="42" Margin="8,0,0,0"
+                                        ToolTip="清空搜索" AutomationProperties.Name="清空修改器搜索">
+                                    <ui:FontIcon Glyph="&#xE894;" FontSize="14"/>
+                                </Button>
+                            </Grid>
+                        </Grid>
+                    </Border>
+
+                    <Border Background="{DynamicResource SteamSurfaceBrush}" CornerRadius="8" Padding="20,18" Margin="0,0,0,12"
+                            Visibility="{Binding IsSearching, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <ui:ProgressRing IsActive="{Binding IsSearching}" Width="22" Height="22" Margin="0,0,10,0"/>
+                            <TextBlock Text="正在查找匹配的修改器…" FontSize="12" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource SteamTextSecondaryBrush}"/>
+                        </StackPanel>
+                    </Border>
+
+                    <StackPanel Visibility="{Binding SearchResults.Count, Converter={StaticResource NonZeroToVisibilityConverter}}"
+                                Margin="0,0,0,20">
+                        <Grid Margin="0,0,0,10">
+                            <TextBlock Text="搜索结果" FontSize="18" FontWeight="SemiBold"/>
+                            <TextBlock HorizontalAlignment="Right" VerticalAlignment="Center" FontSize="11"
+                                       Foreground="{DynamicResource SteamTextTertiaryBrush}">
+                                <Run Text="已找到 "/><Run Text="{Binding SearchResults.Count, Mode=OneWay}"/><Run Text=" 个结果"/>
+                            </TextBlock>
+                        </Grid>
+                        <ItemsControl ItemsSource="{Binding SearchResults}"
+                                      ItemTemplate="{StaticResource SearchResultTemplate}"
+                                      ItemContainerStyle="{StaticResource SteamAnimatedItemContainerStyle}"/>
+                    </StackPanel>
+
+                    <Border Background="{DynamicResource SteamSurfaceBrush}" CornerRadius="10" Padding="32" Margin="0,0,0,18"
+                            Visibility="{Binding HasNoResults, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <StackPanel HorizontalAlignment="Center">
+                            <Border Width="54" Height="54" CornerRadius="27" Background="#1F3142">
+                                <ui:FontIcon Glyph="&#xE721;" FontSize="24" Foreground="#7890A5"
+                                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock Text="没有找到匹配结果" FontSize="15" FontWeight="SemiBold"
+                                       Margin="0,13,0,0" HorizontalAlignment="Center"/>
+                            <TextBlock Text="请换用游戏英文名或缩短关键词后重试"
+                                       FontSize="11" Margin="0,5,0,13" HorizontalAlignment="Center"
+                                       Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                            <Button Content="清空并重试" Command="{Binding ClearSearchCommand}"
+                                    Style="{StaticResource SteamSecondaryButtonStyle}" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <StackPanel Visibility="{Binding IsHotSectionVisible, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <Grid Margin="0,0,0,10">
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="30" Height="30" CornerRadius="6" Background="#17364B" Margin="0,0,10,0">
+                                    <ui:FontIcon Glyph="&#xE735;" FontSize="15" Foreground="{DynamicResource SteamAccentBrush}"
+                                                 HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel>
+                                    <TextBlock Text="热门修改器" FontSize="17" FontWeight="SemiBold"/>
+                                    <TextBlock Text="近期最受关注的游戏" FontSize="10" Margin="0,2,0,0"
+                                               Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                                </StackPanel>
+                            </StackPanel>
+                            <TextBlock Text="Shift + 滚轮横向浏览" FontSize="10" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                        </Grid>
+                        <ScrollViewer x:Name="HotTrainersScrollViewer" VerticalScrollBarVisibility="Disabled"
+                                      HorizontalScrollBarVisibility="Auto" Padding="0,0,0,14" Margin="0,0,0,17">
+                            <ItemsControl ItemsSource="{Binding HotTrainers}"
+                                          ItemTemplate="{StaticResource RecommendationTemplate}"
+                                          ItemContainerStyle="{StaticResource SteamAnimatedItemContainerStyle}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                            </ItemsControl>
+                        </ScrollViewer>
+
+                        <Grid Margin="0,0,0,10">
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="30" Height="30" CornerRadius="6" Background="#24344D" Margin="0,0,10,0">
+                                    <ui:FontIcon Glyph="&#xE895;" FontSize="15" Foreground="#A9B9FF"
+                                                 HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <StackPanel>
+                                    <TextBlock Text="最新发布" FontSize="17" FontWeight="SemiBold"/>
+                                    <TextBlock Text="刚更新或新增的修改器" FontSize="10" Margin="0,2,0,0"
+                                               Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                                </StackPanel>
+                            </StackPanel>
+                            <TextBlock Text="Shift + 滚轮横向浏览" FontSize="10" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                        </Grid>
+                        <ScrollViewer x:Name="NewReleasesScrollViewer" VerticalScrollBarVisibility="Disabled"
+                                      HorizontalScrollBarVisibility="Auto" Padding="0,0,0,14">
+                            <ItemsControl ItemsSource="{Binding NewReleases}"
+                                          ItemTemplate="{StaticResource RecommendationTemplate}"
+                                          ItemContainerStyle="{StaticResource SteamAnimatedItemContainerStyle}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel x:Name="DownloadContentPanel"
+                            Visibility="{Binding IsShowingDownloaded, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <Border Background="{DynamicResource SteamSurfaceBrush}" CornerRadius="10" Padding="18" Margin="0,0,0,16">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Width="48" Height="48" CornerRadius="8" Background="#17364B">
+                                <ui:FontIcon Glyph="&#xE896;" FontSize="22" Foreground="{DynamicResource SteamAccentBrush}"
+                                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Grid.Column="1" Margin="14,0,20,0" VerticalAlignment="Center">
+                                <TextBlock Text="本地修改器库" FontSize="17" FontWeight="SemiBold"/>
+                                <TextBlock FontSize="11" Margin="0,4,0,0" Foreground="{DynamicResource SteamTextTertiaryBrush}">
+                                    <Run Text="已管理 "/><Run Text="{Binding DownloadedTrainers.Count, Mode=OneWay}"/><Run Text=" 个可直接启动的修改器"/>
+                                </TextBlock>
+                            </StackPanel>
+                            <Button Grid.Column="2" Command="{Binding OpenCacheDirCommand}"
+                                    Style="{StaticResource SteamSecondaryButtonStyle}" Height="40" MinHeight="40">
+                                <StackPanel Orientation="Horizontal">
+                                    <ui:FontIcon Glyph="&#xE8B7;" FontSize="14" Margin="0,0,6,0"/>
+                                    <TextBlock Text="打开文件夹"/>
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+                    </Border>
+
+                    <Grid Margin="0,0,0,10">
+                        <TextBlock Text="已下载修改器" FontSize="18" FontWeight="SemiBold"/>
+                        <TextBlock HorizontalAlignment="Right" VerticalAlignment="Center" FontSize="11"
+                                   Foreground="{DynamicResource SteamTextTertiaryBrush}">
+                            <Run Text="共 "/><Run Text="{Binding DownloadedTrainers.Count, Mode=OneWay}"/><Run Text=" 项"/>
+                        </TextBlock>
+                    </Grid>
+                    <ItemsControl ItemsSource="{Binding DownloadedTrainers}"
+                                  ItemTemplate="{StaticResource DownloadedTrainerTemplate}"
+                                  ItemContainerStyle="{StaticResource SteamAnimatedItemContainerStyle}"
+                                  Visibility="{Binding DownloadedTrainers.Count, Converter={StaticResource NonZeroToVisibilityConverter}}"/>
+
+                    <Border Background="{DynamicResource SteamSurfaceBrush}" CornerRadius="10" Padding="38"
+                            Visibility="{Binding DownloadedTrainers.Count, Converter={StaticResource ZeroToVisibilityConverter}}">
+                        <StackPanel HorizontalAlignment="Center">
+                            <Border Width="58" Height="58" CornerRadius="29" Background="#1F3142">
+                                <ui:FontIcon Glyph="&#xE896;" FontSize="25" Foreground="#7890A5"
+                                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock Text="还没有下载修改器" FontSize="15" FontWeight="SemiBold"
+                                       Margin="0,14,0,0" HorizontalAlignment="Center"/>
+                            <TextBlock Text="先搜索游戏并下载，完成后会统一出现在这里"
+                                       FontSize="11" Margin="0,5,0,14" HorizontalAlignment="Center"
+                                       Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                            <Button Content="去发现修改器" Command="{Binding ShowSearchViewCommand}"
+                                    Style="{StaticResource SteamPrimaryButtonStyle}" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <StackPanel x:Name="BindingContentPanel"
+                            Visibility="{Binding IsShowingBinding, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <Border Background="{DynamicResource SteamSurfaceBrush}" CornerRadius="10" Padding="18" Margin="0,0,0,16">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Width="48" Height="48" CornerRadius="8" VerticalAlignment="Center">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Background" Value="#35313B"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsServiceInstalled}" Value="True">
+                                                <Setter Property="Background" Value="#173D30"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <Grid>
+                                    <ui:FontIcon Glyph="&#xE8EF;" FontSize="22" Foreground="#A8B3BE"
+                                                 HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                 Visibility="{Binding IsServiceInstalled, Converter={StaticResource InvertedBoolToVisibilityConverter}}"/>
+                                    <ui:FontIcon Glyph="&#xE8EF;" FontSize="22" Foreground="{DynamicResource SteamGreenBrush}"
+                                                 HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                 Visibility="{Binding IsServiceInstalled, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                </Grid>
+                            </Border>
+                            <StackPanel Grid.Column="1" Margin="14,0,20,0" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="后台自动启动服务" FontSize="17" FontWeight="SemiBold"/>
+                                    <Border CornerRadius="4" Padding="8,3" Margin="10,0,0,0">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="#35313B"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsServiceInstalled}" Value="True">
+                                                        <Setter Property="Background" Value="#173D30"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <Grid>
+                                            <TextBlock Text="未安装" FontSize="9" Foreground="#C4ADB4"
+                                                       Visibility="{Binding IsServiceInstalled, Converter={StaticResource InvertedBoolToVisibilityConverter}}"/>
+                                            <TextBlock Text="已安装" FontSize="9" Foreground="{DynamicResource SteamGreenBrush}"
+                                                       Visibility="{Binding IsServiceInstalled, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                        </Grid>
+                                    </Border>
+                                </StackPanel>
+                                <TextBlock Text="安装后即使 MJJST 未打开，也能在游戏启动时自动运行已绑定的修改器"
+                                           FontSize="11" Margin="0,4,0,0" Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                                <TextBlock Text="{Binding MonitorStatusText}" FontSize="10" Margin="0,5,0,0"
+                                           Foreground="#8FAFC3"
+                                           Visibility="{Binding MonitorStatusVisible, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                            </StackPanel>
+                            <Button Grid.Column="2" Command="{Binding InstallServiceCommand}"
+                                    Style="{StaticResource SteamPrimaryButtonStyle}" Height="40" MinHeight="40"
+                                    Visibility="{Binding IsServiceInstalled, Converter={StaticResource InvertedBoolToVisibilityConverter}}">
+                                <StackPanel Orientation="Horizontal">
+                                    <ui:FontIcon Glyph="&#xE896;" FontSize="13" Margin="0,0,6,0"/>
+                                    <TextBlock Text="安装服务"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Grid.Column="2" Command="{Binding UninstallServiceCommand}"
+                                    Style="{StaticResource SteamSecondaryButtonStyle}" Height="40" MinHeight="40"
+                                    Visibility="{Binding IsServiceInstalled, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <StackPanel Orientation="Horizontal">
+                                    <ui:FontIcon Glyph="&#xE74D;" FontSize="13" Margin="0,0,6,0"/>
+                                    <TextBlock Text="卸载服务"/>
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+                    </Border>
+
+                    <Grid Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="游戏绑定" FontSize="18" FontWeight="SemiBold"/>
+                            <TextBlock Text="为指定游戏程序配置修改器及启动后自动激活的功能"
+                                       FontSize="10" Margin="0,3,0,0" Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                        </StackPanel>
+                        <Button HorizontalAlignment="Right" VerticalAlignment="Center" Command="{Binding AddBindingCommand}"
+                                Style="{StaticResource SteamPrimaryButtonStyle}" Height="40" MinHeight="40">
+                            <StackPanel Orientation="Horizontal">
+                                <ui:FontIcon Glyph="&#xE710;" FontSize="13" Margin="0,0,6,0"/>
+                                <TextBlock Text="添加绑定"/>
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                    <ItemsControl ItemsSource="{Binding TrainerBindings}"
+                                  ItemTemplate="{StaticResource TrainerBindingTemplate}"
+                                  ItemContainerStyle="{StaticResource SteamAnimatedItemContainerStyle}"
+                                  Visibility="{Binding TrainerBindings.Count, Converter={StaticResource NonZeroToVisibilityConverter}}"/>
+
+                    <Border Background="{DynamicResource SteamSurfaceBrush}" CornerRadius="10" Padding="38"
+                            Visibility="{Binding TrainerBindings.Count, Converter={StaticResource ZeroToVisibilityConverter}}">
+                        <StackPanel HorizontalAlignment="Center">
+                            <Border Width="58" Height="58" CornerRadius="29" Background="#1F3142">
+                                <ui:FontIcon Glyph="&#xE8EF;" FontSize="25" Foreground="#7890A5"
+                                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock Text="还没有自动启动绑定" FontSize="15" FontWeight="SemiBold"
+                                       Margin="0,14,0,0" HorizontalAlignment="Center"/>
+                            <TextBlock Text="添加游戏程序和修改器，之后启动游戏即可自动联动"
+                                       FontSize="11" Margin="0,5,0,14" HorizontalAlignment="Center"
+                                       Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                            <Button Content="添加第一个绑定" Command="{Binding AddBindingCommand}"
+                                    Style="{StaticResource SteamPrimaryButtonStyle}" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </ScrollViewer>
+
+        <ui:InfoBar Grid.Row="3"
+                    IsOpen="{Binding StatusMessage, Converter={StaticResource StringNotEmptyToBoolConverter}}"
+                    Message="{Binding StatusMessage}"
+                    Severity="{Binding StatusSeverity}"
+                    IsClosable="True"
+                    HorizontalAlignment="Stretch"
+                    Margin="0,10,0,0"
+                    ui:ControlHelper.CornerRadius="8">
+            <ui:InfoBar.Resources>
+                <Style TargetType="TextBlock">
+                    <Setter Property="Foreground" Value="{DynamicResource SteamTextPrimaryBrush}"/>
+                </Style>
+            </ui:InfoBar.Resources>
+        </ui:InfoBar>
+    </Grid>
+</UserControl>

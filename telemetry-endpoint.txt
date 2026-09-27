@@ -1,0 +1,1 @@
+https://mjjsteamtools-telemetry.konglai55.workers.dev/api/heartbeat
