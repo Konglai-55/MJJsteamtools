@@ -48,11 +48,14 @@ internal sealed class InstallerForm : Form
         header.Controls.Add(new Label { AutoSize = true, Text = "Steam 游戏库与 Lua/Bin 管理工具 · 版本 2.7.0", Font = new Font("Segoe UI", 10), ForeColor = Color.FromArgb(190, 205, 220), Location = new Point(31, 63) });
 
         _body.Dock = DockStyle.Fill;
-        _body.Padding = new Padding(30, 22, 30, 20);
+        _body.Padding = new Padding(30, 12, 30, 0);
         BuildWelcomePage(); BuildLocationPage(); BuildInstallPage();
         _body.Controls.AddRange(new Control[] { _welcomePage, _locationPage, _installPage });
 
-        var footer = new Panel { Dock = DockStyle.Bottom, Height = 66, BackColor = Color.FromArgb(242, 244, 247) };
+        // Set the design width before adding right-anchored buttons. Otherwise
+        // WinForms anchors against Panel's default 200px width and shifts the
+        // buttons 440px beyond the window when Dock expands it to 640px.
+        var footer = new Panel { Dock = DockStyle.Bottom, Width = ClientSize.Width, Height = 66, BackColor = Color.FromArgb(242, 244, 247) };
         var cancel = new Button { Text = "取消", Width = 90, Height = 36, Location = new Point(335, 15), Anchor = AnchorStyles.Right | AnchorStyles.Bottom };
         cancel.Click += (_, _) => Close();
         _backButton.Text = "上一步"; _backButton.Width = 90; _backButton.Height = 36; _backButton.Location = new Point(430, 15); _backButton.Anchor = AnchorStyles.Right | AnchorStyles.Bottom; _backButton.Click += (_, _) => GoBack();
@@ -67,7 +70,7 @@ internal sealed class InstallerForm : Form
         _welcomePage.Dock = DockStyle.Fill;
         _welcomePage.Controls.Add(new Label { AutoSize = true, Text = "欢迎使用 MJJsteamtools 安装程序", Font = new Font("Segoe UI", 15, FontStyle.Bold), Location = new Point(0, 12) });
         _welcomePage.Controls.Add(new Label { AutoSize = false, Size = new Size(560, 90), Text = "此向导将帮助你安装 MJJsteamtools。\n\n点击“下一步”选择安装位置，或直接使用推荐位置快速安装。", Font = new Font("Segoe UI", 10), ForeColor = Color.FromArgb(75, 84, 94), Location = new Point(0, 58) });
-        var quick = new Button { Text = "快速安装到推荐位置", Width = 190, Height = 38, Location = new Point(0, 185) };
+        var quick = new Button { Text = "使用推荐安装位置", Width = 190, Height = 38, Location = new Point(0, 142) };
         quick.Click += (_, _) => { _installPath.Text = _defaultPath; ShowPage(1); };
         _welcomePage.Controls.Add(quick);
     }
@@ -77,11 +80,11 @@ internal sealed class InstallerForm : Form
         _locationPage.Dock = DockStyle.Fill;
         _locationPage.Controls.Add(new Label { AutoSize = true, Text = "选择安装位置", Font = new Font("Segoe UI", 15, FontStyle.Bold), Location = new Point(0, 12) });
         _locationPage.Controls.Add(new Label { AutoSize = false, Size = new Size(560, 42), Text = "选择 MJJsteamtools 的安装目录。建议使用默认位置。", ForeColor = Color.FromArgb(75, 84, 94), Location = new Point(0, 52) });
-        _locationPage.Controls.Add(new Label { AutoSize = true, Text = "安装目录", Location = new Point(0, 118) });
-        _installPath.Text = _defaultPath; _installPath.Location = new Point(0, 145); _installPath.Width = 440; _installPath.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-        var browse = new Button { Text = "浏览…", Location = new Point(455, 143), Width = 95, Height = 28, Anchor = AnchorStyles.Top | AnchorStyles.Right }; browse.Click += (_, _) => Browse();
-        var quick = new Button { Text = "使用推荐位置", Location = new Point(0, 190), Width = 125, Height = 30 }; quick.Click += (_, _) => _installPath.Text = _defaultPath;
-        _launchAfterInstall.Text = "安装完成后启动 MJJsteamtools"; _launchAfterInstall.Checked = true; _launchAfterInstall.AutoSize = true; _launchAfterInstall.Location = new Point(0, 240);
+        _locationPage.Controls.Add(new Label { AutoSize = true, Text = "安装目录", Location = new Point(0, 80) });
+        _installPath.Text = _defaultPath; _installPath.Location = new Point(0, 105); _installPath.Width = 440;
+        var browse = new Button { Text = "浏览…", Location = new Point(455, 103), Width = 95, Height = 28 }; browse.Click += (_, _) => Browse();
+        var quick = new Button { Text = "使用推荐位置", Location = new Point(0, 142), Width = 125, Height = 30 }; quick.Click += (_, _) => _installPath.Text = _defaultPath;
+        _launchAfterInstall.Text = "安装完成后启动 MJJsteamtools"; _launchAfterInstall.Checked = true; _launchAfterInstall.AutoSize = true; _launchAfterInstall.Location = new Point(0, 181);
         _locationPage.Controls.AddRange(new Control[] { _installPath, browse, quick, _launchAfterInstall });
     }
 
