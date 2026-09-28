@@ -23,6 +23,16 @@
     <SolidColorBrush x:Key="SteamShellBrush" Color="{StaticResource SteamShellColor}"/>
     <SolidColorBrush x:Key="SteamSidebarBrush" Color="{StaticResource SteamSidebarColor}"/>
     <SolidColorBrush x:Key="SteamContentBrush" Color="{StaticResource SteamContentColor}"/>
+    <!-- A restrained radial glow gives the main workspace depth without competing with cards. -->
+    <RadialGradientBrush x:Key="SteamContentGlowBrush"
+                         Center="0.08,0.04"
+                         GradientOrigin="0.08,0.04"
+                         RadiusX="1.05"
+                         RadiusY="1.0">
+        <GradientStop Color="#1D3448" Offset="0"/>
+        <GradientStop Color="#192A3A" Offset="0.34"/>
+        <GradientStop Color="#151D27" Offset="1"/>
+    </RadialGradientBrush>
     <SolidColorBrush x:Key="SteamSurfaceBrush" Color="{StaticResource SteamSurfaceColor}"/>
     <SolidColorBrush x:Key="SteamSurfaceRaisedBrush" Color="{StaticResource SteamSurfaceRaisedColor}"/>
     <SolidColorBrush x:Key="SteamHoverBrush" Color="{StaticResource SteamHoverColor}"/>
@@ -37,6 +47,48 @@
     <SolidColorBrush x:Key="SteamTextPrimaryBrush" Color="{StaticResource SteamTextPrimaryColor}"/>
     <SolidColorBrush x:Key="SteamTextSecondaryBrush" Color="{StaticResource SteamTextSecondaryColor}"/>
     <SolidColorBrush x:Key="SteamTextTertiaryBrush" Color="{StaticResource SteamTextTertiaryColor}"/>
+
+    <!-- Use restrained elevation instead of hard divider outlines. -->
+    <DropShadowEffect x:Key="SteamSectionShadowEffect"
+                      Color="#000000"
+                      Direction="270"
+                      ShadowDepth="3"
+                      BlurRadius="14"
+                      Opacity="0.28"/>
+    <DropShadowEffect x:Key="SteamPaneShadowEffect"
+                      Color="#000000"
+                      Direction="0"
+                      ShadowDepth="10"
+                      BlurRadius="28"
+                      Opacity="0.26"/>
+    <DropShadowEffect x:Key="SteamToggleShadowEffect"
+                      Color="#000000"
+                      Direction="0"
+                      ShadowDepth="3"
+                      BlurRadius="8"
+                      Opacity="0.20"/>
+
+    <!-- Unified filled Fluent icon treatment for the navigation rail. -->
+    <Style x:Key="SolidNavIconStyle" TargetType="ui:FontIcon">
+        <Setter Property="FontFamily" Value="Segoe Fluent Icons"/>
+        <Setter Property="FontSize" Value="18"/>
+        <Setter Property="Width" Value="22"/>
+        <Setter Property="HorizontalAlignment" Value="Center"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    <Style x:Key="SolidNavPathIconStyle" TargetType="Path">
+        <Setter Property="Width" Value="20"/>
+        <Setter Property="Height" Value="20"/>
+        <Setter Property="Stretch" Value="Uniform"/>
+        <Setter Property="HorizontalAlignment" Value="Center"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Fill">
+            <Setter.Value>
+                <Binding Path="Foreground"
+                         RelativeSource="{RelativeSource AncestorType={x:Type ui:NavigationViewItem}}"/>
+            </Setter.Value>
+        </Setter>
+    </Style>
     <SolidColorBrush x:Key="SteamDividerBrush" Color="{StaticResource SteamDividerColor}"/>
     <SolidColorBrush x:Key="SteamSearchFieldBrush" Color="#22272E"/>
     <SolidColorBrush x:Key="SteamSearchFieldHoverBrush" Color="#191E24"/>
@@ -57,7 +109,6 @@
             </Trigger>
             <Trigger Property="IsKeyboardFocusWithin" Value="True">
                 <Setter Property="Background" Value="{StaticResource SteamSearchFieldHoverBrush}"/>
-                <Setter Property="BorderBrush" Value="{StaticResource SteamAccentBrush}"/>
             </Trigger>
         </Style.Triggers>
     </Style>
@@ -70,6 +121,7 @@
         <Setter Property="CaretBrush" Value="{StaticResource SteamTextPrimaryBrush}"/>
         <Setter Property="Padding" Value="4,4,4,4"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
     </Style>
 
     <Style x:Key="SteamSearchSuggestStyle" TargetType="{x:Type ui:AutoSuggestBox}">
@@ -91,6 +143,7 @@
         <Setter Property="CaretBrush" Value="{StaticResource SteamTextPrimaryBrush}"/>
         <Setter Property="FontSize" Value="13"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type controls:SearchTextBox}">
@@ -141,7 +194,6 @@
                         </Trigger>
                         <Trigger Property="IsKeyboardFocusWithin" Value="True">
                             <Setter TargetName="SearchFrame" Property="Background" Value="{StaticResource SteamSearchFieldHoverBrush}"/>
-                            <Setter TargetName="SearchFrame" Property="BorderBrush" Value="{StaticResource SteamAccentBrush}"/>
                         </Trigger>
                         <DataTrigger Binding="{Binding Text.Length, RelativeSource={RelativeSource TemplatedParent}}" Value="0">
                             <Setter TargetName="ClearButton" Property="Visibility" Value="Collapsed"/>
@@ -163,6 +215,7 @@
         <Setter Property="BorderBrush" Value="{StaticResource SteamSearchFieldBorderBrush}"/>
         <Setter Property="Foreground" Value="#A7AFB8"/>
         <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
@@ -177,7 +230,7 @@
                             <Setter TargetName="FilterFrame" Property="BorderBrush" Value="{StaticResource SteamSearchFieldHoverBorderBrush}"/>
                         </Trigger>
                         <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="FilterFrame" Property="BorderBrush" Value="{StaticResource SteamAccentBrush}"/>
+                            <Setter TargetName="FilterFrame" Property="Background" Value="{StaticResource SteamSearchFieldHoverBrush}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -231,9 +284,10 @@
 
     <Style x:Key="SteamCardBorderStyle" TargetType="Border">
         <Setter Property="Background" Value="{StaticResource SteamSurfaceBrush}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource SteamDividerBrush}"/>
-        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="Effect" Value="{StaticResource SteamSectionShadowEffect}"/>
     </Style>
 
     <Style x:Key="SteamInteractiveCardBorderStyle" TargetType="Border"
@@ -287,7 +341,7 @@
                             <Setter TargetName="ButtonBorder" Property="Background" Value="#233341"/>
                         </Trigger>
                         <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="{StaticResource SteamAccentBrush}"/>
+                            <Setter TargetName="ButtonBorder" Property="Background" Value="#3B566A"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.45"/>
@@ -299,6 +353,8 @@
     </Style>
 
     <Style x:Key="SteamPrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource SteamSecondaryButtonStyle}">
+        <!-- Primary actions carry a slightly stronger, still restrained release. -->
+        <Setter Property="controls:MotionBehavior.IsEmphasisEnabled" Value="True"/>
         <Setter Property="Background" Value="{StaticResource SteamPrimaryButtonBrush}"/>
         <Setter Property="BorderBrush" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="0"/>
@@ -326,8 +382,8 @@
                                     Value="{StaticResource SteamPrimaryButtonPressedBrush}"/>
                         </Trigger>
                         <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="PrimaryButtonBorder" Property="BorderBrush" Value="White"/>
-                            <Setter TargetName="PrimaryButtonBorder" Property="BorderThickness" Value="2"/>
+                            <Setter TargetName="PrimaryButtonBorder" Property="Background"
+                                    Value="{StaticResource SteamPrimaryButtonHoverBrush}"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.45"/>

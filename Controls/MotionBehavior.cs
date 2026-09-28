@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Data;
 using System.Windows.Media;
@@ -7,17 +8,12 @@ using System.Windows.Media.Animation;
 namespace SteamLuaManager.Controls;
 
 /// <summary>
-/// Central Fluent-style motion behavior. Durations follow the Windows motion
-/// guidance: 83 ms for press feedback, 167 ms for control feedback and 250 ms
-/// for content entering the scene. All motion respects the Windows animation
-/// accessibility setting.
+/// Reusable motion gestures. AppMotion owns timing and curves; this behavior
+/// owns transforms, so pages can reuse the same language without fighting
+/// each other's RenderTransform or ignoring reduced-motion preferences.
 /// </summary>
 public static class MotionBehavior
 {
-    private static readonly Duration FasterDuration = new(TimeSpan.FromMilliseconds(83));
-    private static readonly Duration FastDuration = new(TimeSpan.FromMilliseconds(167));
-    private static readonly Duration NormalDuration = new(TimeSpan.FromMilliseconds(250));
-
     public static readonly DependencyProperty IsButtonFeedbackEnabledProperty =
         DependencyProperty.RegisterAttached(
             "IsButtonFeedbackEnabled",
@@ -52,6 +48,20 @@ public static class MotionBehavior
             typeof(bool),
             typeof(MotionBehavior),
             new PropertyMetadata(false, OnRevealChanged));
+
+    public static readonly DependencyProperty EntranceOrderProperty =
+        DependencyProperty.RegisterAttached(
+            "EntranceOrder",
+            typeof(int),
+            typeof(MotionBehavior),
+            new PropertyMetadata(0));
+
+    public static readonly DependencyProperty IsEmphasisEnabledProperty =
+        DependencyProperty.RegisterAttached(
+            "IsEmphasisEnabled",
+            typeof(bool),
+            typeof(MotionBehavior),
+            new PropertyMetadata(false));
 
     private static readonly DependencyProperty MotionTransformsProperty =
         DependencyProperty.RegisterAttached(
@@ -89,41 +99,82 @@ public static class MotionBehavior
     public static bool GetIsRevealEnabled(DependencyObject element) =>
         (bool)element.GetValue(IsRevealEnabledProperty);
 
-    private static bool AnimationsEnabled => SystemParameters.ClientAreaAnimation;
+    public static void SetEntranceOrder(DependencyObject element, int value) =>
+        element.SetValue(EntranceOrderProperty, value);
+
+    public static int GetEntranceOrder(DependencyObject element) =>
+        (int)element.GetValue(EntranceOrderProperty);
+
+    public static void SetIsEmphasisEnabled(DependencyObject element, bool value) =>
+        element.SetValue(IsEmphasisEnabledProperty, value);
+
+    public static bool GetIsEmphasisEnabled(DependencyObject element) =>
+        (bool)element.GetValue(IsEmphasisEnabledProperty);
+
+    private static bool AnimationsEnabled => AppMotion.Enabled;
 
     private static void OnButtonFeedbackChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         if (d is not FrameworkElement element) return;
         if ((bool)e.NewValue)
         {
+            element.MouseEnter += Button_MouseEnter;
             element.PreviewMouseLeftButtonDown += Button_PreviewMouseLeftButtonDown;
             element.PreviewMouseLeftButtonUp += Button_PreviewMouseLeftButtonUp;
             element.MouseLeave += Button_MouseLeave;
+            element.IsEnabledChanged += Element_IsEnabledChanged;
         }
         else
         {
+            element.MouseEnter -= Button_MouseEnter;
             element.PreviewMouseLeftButtonDown -= Button_PreviewMouseLeftButtonDown;
             element.PreviewMouseLeftButtonUp -= Button_PreviewMouseLeftButtonUp;
             element.MouseLeave -= Button_MouseLeave;
+            element.IsEnabledChanged -= Element_IsEnabledChanged;
+        }
+    }
+
+    private static void Button_MouseEnter(object sender, MouseEventArgs e)
+    {
+        if (sender is FrameworkElement { IsEnabled: true } element)
+        {
+            var hoverScale = GetIsEmphasisEnabled(element) ? 1.012 : 1.008;
+            AnimateScale(element, hoverScale, hoverScale, AppMotion.Pace.Feedback);
         }
     }
 
     private static void Button_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (sender is not FrameworkElement element) return;
-        AnimateScale(element, 0.975, FasterDuration);
+        if (sender is not FrameworkElement { IsEnabled: true } element) return;
+        // Anticipation + restrained squash; the release supplies follow-through.
+        var emphasized = GetIsEmphasisEnabled(element);
+        AnimateScale(element, emphasized ? 1.018 : 1.012, emphasized ? 0.97 : 0.978,
+            AppMotion.Pace.Press);
     }
 
     private static void Button_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
-        if (sender is not FrameworkElement element) return;
-        AnimateScale(element, element.IsMouseOver ? 1.01 : 1.0, FasterDuration);
+        if (sender is not FrameworkElement { IsEnabled: true } element) return;
+        var target = element.IsMouseOver ? (GetIsEmphasisEnabled(element) ? 1.012 : 1.008) : 1.0;
+        AnimateScale(element, target, target, AppMotion.Pace.Settle, AppMotion.Curve.Settle);
     }
 
     private static void Button_MouseLeave(object sender, MouseEventArgs e)
     {
         if (sender is not FrameworkElement element) return;
-        AnimateScale(element, 1.0, FastDuration);
+        AnimateScale(element, 1.0, 1.0, AppMotion.Pace.Feedback);
+    }
+
+    private static void Element_IsEnabledChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (sender is not FrameworkElement element || e.NewValue is not false) return;
+        var transforms = EnsureTransforms(element);
+        transforms.Scale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+        transforms.Scale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+        transforms.Translate.BeginAnimation(TranslateTransform.YProperty, null);
+        transforms.Scale.ScaleX = 1;
+        transforms.Scale.ScaleY = 1;
+        transforms.Translate.Y = 0;
     }
 
     private static void OnHoverLiftChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -147,26 +198,27 @@ public static class MotionBehavior
 
     private static void HoverElement_MouseEnter(object sender, MouseEventArgs e)
     {
-        if (sender is not FrameworkElement element) return;
-        AnimateLift(element, -2, 1.006, FastDuration);
+        if (sender is not FrameworkElement { IsEnabled: true } element) return;
+        AnimateLift(element, -2, 1.006, AppMotion.Pace.Feedback);
     }
 
     private static void HoverElement_MouseLeave(object sender, MouseEventArgs e)
     {
         if (sender is not FrameworkElement element) return;
-        AnimateLift(element, 0, 1.0, FastDuration);
+        AnimateLift(element, 0, 1.0, AppMotion.Pace.Feedback);
     }
 
     private static void HoverElement_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (sender is not FrameworkElement element) return;
-        AnimateLift(element, 0, 0.99, FasterDuration);
+        AnimateLift(element, 0, 0.99, AppMotion.Pace.Press);
     }
 
     private static void HoverElement_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
         if (sender is not FrameworkElement element) return;
-        AnimateLift(element, element.IsMouseOver ? -2 : 0, element.IsMouseOver ? 1.006 : 1.0, FasterDuration);
+        AnimateLift(element, element.IsMouseOver ? -2 : 0, element.IsMouseOver ? 1.006 : 1.0,
+            AppMotion.Pace.Settle, AppMotion.Curve.Settle);
     }
 
     private static void OnEntranceChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -181,18 +233,24 @@ public static class MotionBehavior
     private static void EntranceElement_Loaded(object sender, RoutedEventArgs e)
     {
         if (sender is not FrameworkElement element) return;
-        var transforms = EnsureTransforms(element);
-        if (!AnimationsEnabled)
+        var order = GetEntranceOrder(element);
+        if (element is ContentPresenter or ListBoxItem)
         {
-            element.Opacity = 1;
-            transforms.Translate.Y = 0;
-            return;
+            var owner = ItemsControl.ItemsControlFromItemContainer(element);
+            var index = owner?.ItemContainerGenerator.IndexFromContainer(element) ?? -1;
+            // Limit simultaneous work: later items appear immediately, so long
+            // libraries and virtualized lists never run a wall of animations.
+            if (index >= 6)
+            {
+                var translate = EnsureTransforms(element).Translate;
+                translate.BeginAnimation(TranslateTransform.YProperty, null);
+                translate.Y = 0;
+                element.BeginAnimation(UIElement.OpacityProperty, null);
+                return;
+            }
+            if (index >= 0) order = index;
         }
-
-        element.Opacity = 0;
-        transforms.Translate.Y = 8;
-        element.BeginAnimation(UIElement.OpacityProperty, CreateAnimation(1, NormalDuration));
-        transforms.Translate.BeginAnimation(TranslateTransform.YProperty, CreateAnimation(0, NormalDuration));
+        PlayEntrance(element, fromY: 8, order: order);
     }
 
     private static void OnContentTransitionChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -222,18 +280,7 @@ public static class MotionBehavior
     private static void RevealElement_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
         if (sender is not FrameworkElement element || e.NewValue is not true) return;
-        var transforms = EnsureTransforms(element);
-        if (!AnimationsEnabled)
-        {
-            element.Opacity = 1;
-            transforms.Translate.Y = 0;
-            return;
-        }
-
-        element.Opacity = 0;
-        transforms.Translate.Y = -6;
-        element.BeginAnimation(UIElement.OpacityProperty, CreateAnimation(1, NormalDuration));
-        transforms.Translate.BeginAnimation(TranslateTransform.YProperty, CreateAnimation(0, NormalDuration));
+        PlayEntrance(element, fromY: -6);
     }
 
     private static void ContentElement_TargetUpdated(object? sender, DataTransferEventArgs e)
@@ -250,58 +297,110 @@ public static class MotionBehavior
 
     private static void PlayContentTransition(FrameworkElement element)
     {
+        PlayEntrance(element, fromX: 10, pace: AppMotion.Pace.Feedback, initialOpacity: 0.55);
+    }
+
+    public static void PlayEntrance(FrameworkElement element, double fromX = 0, double fromY = 0,
+        int order = 0, AppMotion.Pace pace = AppMotion.Pace.Content, double initialOpacity = 0)
+    {
         var transforms = EnsureTransforms(element);
+        var targetOpacity = (double)element.GetAnimationBaseValue(UIElement.OpacityProperty);
         if (!AnimationsEnabled)
         {
-            element.Opacity = 1;
+            element.BeginAnimation(UIElement.OpacityProperty, null);
+            transforms.Translate.BeginAnimation(TranslateTransform.XProperty, null);
+            transforms.Translate.BeginAnimation(TranslateTransform.YProperty, null);
             transforms.Translate.X = 0;
+            transforms.Translate.Y = 0;
             return;
         }
 
-        element.Opacity = 0.55;
-        transforms.Translate.X = 10;
-        element.BeginAnimation(UIElement.OpacityProperty, CreateAnimation(1, FastDuration));
-        transforms.Translate.BeginAnimation(TranslateTransform.XProperty, CreateAnimation(0, FastDuration));
+        var delay = AppMotion.Stagger(order);
+        element.BeginAnimation(UIElement.OpacityProperty, null);
+        transforms.Translate.BeginAnimation(TranslateTransform.XProperty, null);
+        transforms.Translate.BeginAnimation(TranslateTransform.YProperty, null);
+        transforms.Translate.X = fromX;
+        transforms.Translate.Y = fromY;
+        if (fromX != 0)
+        {
+            transforms.Translate.BeginAnimation(TranslateTransform.XProperty,
+                AppMotion.To(0, pace, from: fromX, delay: delay), HandoffBehavior.SnapshotAndReplace);
+        }
+        if (fromY != 0)
+        {
+            transforms.Translate.BeginAnimation(TranslateTransform.YProperty,
+                fromX != 0
+                    ? AppMotion.ArcY(fromY, pace, delay)
+                    : AppMotion.To(0, pace, from: fromY, delay: delay),
+                HandoffBehavior.SnapshotAndReplace);
+        }
+        element.BeginAnimation(UIElement.OpacityProperty,
+            AppMotion.OpacityEntrance(initialOpacity, targetOpacity, pace, delay),
+            HandoffBehavior.SnapshotAndReplace);
     }
 
-    private static void AnimateScale(FrameworkElement element, double scale, Duration duration)
+    public static TimeSpan PlayExit(FrameworkElement element, double toX = 0, double toY = 0)
     {
         var transforms = EnsureTransforms(element);
         if (!AnimationsEnabled)
         {
-            transforms.Scale.ScaleX = scale;
-            transforms.Scale.ScaleY = scale;
-            return;
+            element.BeginAnimation(UIElement.OpacityProperty, null);
+            element.Opacity = 0;
+            return TimeSpan.Zero;
         }
 
-        transforms.Scale.BeginAnimation(ScaleTransform.ScaleXProperty, CreateAnimation(scale, duration));
-        transforms.Scale.BeginAnimation(ScaleTransform.ScaleYProperty, CreateAnimation(scale, duration));
+        element.BeginAnimation(UIElement.OpacityProperty,
+            AppMotion.To(0, AppMotion.Pace.Exit, AppMotion.Curve.Exit), HandoffBehavior.SnapshotAndReplace);
+        if (toX != 0)
+            transforms.Translate.BeginAnimation(TranslateTransform.XProperty,
+                AppMotion.To(toX, AppMotion.Pace.Exit, AppMotion.Curve.Exit), HandoffBehavior.SnapshotAndReplace);
+        if (toY != 0)
+            transforms.Translate.BeginAnimation(TranslateTransform.YProperty,
+                AppMotion.To(toY, AppMotion.Pace.Exit, AppMotion.Curve.Exit), HandoffBehavior.SnapshotAndReplace);
+        return AppMotion.Duration(AppMotion.Pace.Exit);
     }
 
-    private static void AnimateLift(FrameworkElement element, double y, double scale, Duration duration)
+    private static void AnimateScale(FrameworkElement element, double x, double y, AppMotion.Pace pace,
+        AppMotion.Curve curve = AppMotion.Curve.Enter)
     {
         var transforms = EnsureTransforms(element);
         if (!AnimationsEnabled)
         {
-            transforms.Translate.Y = y;
-            transforms.Scale.ScaleX = scale;
-            transforms.Scale.ScaleY = scale;
+            transforms.Scale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+            transforms.Scale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+            transforms.Scale.ScaleX = 1;
+            transforms.Scale.ScaleY = 1;
             return;
         }
 
-        transforms.Translate.BeginAnimation(TranslateTransform.YProperty, CreateAnimation(y, duration));
-        transforms.Scale.BeginAnimation(ScaleTransform.ScaleXProperty, CreateAnimation(scale, duration));
-        transforms.Scale.BeginAnimation(ScaleTransform.ScaleYProperty, CreateAnimation(scale, duration));
+        transforms.Scale.BeginAnimation(ScaleTransform.ScaleXProperty,
+            AppMotion.To(x, pace, curve), HandoffBehavior.SnapshotAndReplace);
+        transforms.Scale.BeginAnimation(ScaleTransform.ScaleYProperty,
+            AppMotion.To(y, pace, curve), HandoffBehavior.SnapshotAndReplace);
     }
 
-    private static DoubleAnimation CreateAnimation(double to, Duration duration) =>
-        new()
+    private static void AnimateLift(FrameworkElement element, double y, double scale, AppMotion.Pace pace,
+        AppMotion.Curve curve = AppMotion.Curve.Enter)
+    {
+        var transforms = EnsureTransforms(element);
+        if (!AnimationsEnabled)
         {
-            To = to,
-            Duration = duration,
-            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
-            FillBehavior = FillBehavior.HoldEnd
-        };
+            transforms.Translate.BeginAnimation(TranslateTransform.YProperty, null);
+            transforms.Scale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+            transforms.Scale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+            transforms.Translate.Y = 0;
+            transforms.Scale.ScaleX = 1;
+            transforms.Scale.ScaleY = 1;
+            return;
+        }
+
+        transforms.Translate.BeginAnimation(TranslateTransform.YProperty,
+            AppMotion.To(y, pace, curve), HandoffBehavior.SnapshotAndReplace);
+        transforms.Scale.BeginAnimation(ScaleTransform.ScaleXProperty,
+            AppMotion.To(scale, pace, curve), HandoffBehavior.SnapshotAndReplace);
+        transforms.Scale.BeginAnimation(ScaleTransform.ScaleYProperty,
+            AppMotion.To(scale, pace, curve), HandoffBehavior.SnapshotAndReplace);
+    }
 
     private static MotionTransforms EnsureTransforms(FrameworkElement element)
     {

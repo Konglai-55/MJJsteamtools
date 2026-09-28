@@ -2,7 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Animation;
+using SteamLuaManager.Controls;
 using iNKORE.UI.WPF.Modern.Controls;
 using SteamLuaManager.ViewModels;
 
@@ -32,33 +32,7 @@ public partial class TrainerView : UserControl
     private static void OnContentPanelIsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
         if ((bool)e.NewValue && sender is FrameworkElement element)
-        {
-            if (!SystemParameters.ClientAreaAnimation)
-            {
-                element.Opacity = 1;
-                return;
-            }
-
-            element.Opacity = 0;
-            var opacityAnimation = new DoubleAnimation
-            {
-                From = 0,
-                To = 1,
-                Duration = TimeSpan.FromMilliseconds(180),
-                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
-            };
-            var transform = element.RenderTransform as TranslateTransform ?? new TranslateTransform();
-            element.RenderTransform = transform;
-            var positionAnimation = new DoubleAnimation
-            {
-                From = 8,
-                To = 0,
-                Duration = TimeSpan.FromMilliseconds(180),
-                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
-            };
-            element.BeginAnimation(FrameworkElement.OpacityProperty, opacityAnimation);
-            transform.BeginAnimation(TranslateTransform.YProperty, positionAnimation);
-        }
+            MotionBehavior.PlayEntrance(element, fromY: 8, pace: AppMotion.Pace.Content);
     }
 
     private static void OnNestedScrollViewerPreviewMouseWheel(object sender, MouseWheelEventArgs e)

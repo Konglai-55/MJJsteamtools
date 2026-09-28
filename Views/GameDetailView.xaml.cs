@@ -11,6 +11,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using iNKORE.UI.WPF.Modern.Controls;
+using SteamLuaManager.Controls;
 using SteamLuaManager.Models;
 using SteamLuaManager.Services;
 using SteamLuaManager.ViewModels;
@@ -50,9 +51,13 @@ public partial class GameDetailView : UserControl
     private SaveGameRecord? _saveRecord;
     private bool _hasLoadedDlcs;
     private bool _isPlayProfileApplying;
+    private bool _sharedTransitionPrepared;
 
     public event EventHandler? CloseRequested;
     public event Action<int>? OpenSaveVaultRequested;
+
+    /// <summary>Hero image used by HomeView's shared-element transition.</summary>
+    public Image SharedCoverImage => DetailCoverImage;
 
     public GameDetailView(
         ISteamPathService steamPathService,
@@ -99,6 +104,13 @@ public partial class GameDetailView : UserControl
         SetDlcAdvancedVisible(false, animate: false);
         SetAchievementAdvancedVisible(false, animate: false);
         SetActiveDetailTab(OverviewTabButton);
+        SetSaveSectionVisible(false);
+        DetailScrollViewer.ScrollToTop();
+        if (!_sharedTransitionPrepared)
+        {
+            MotionBehavior.PlayEntrance(OverviewSection, fromY: 10, pace: AppMotion.Pace.Page);
+            MotionBehavior.PlayEntrance(DetailMetricStrip, fromY: 6, order: 1);
+        }
         _hasLoadedDlcs = false;
         CreatePlayProfileButton.IsEnabled = false;
         PlayProfileResultBar.Visibility = Visibility.Collapsed;
@@ -137,6 +149,79 @@ public partial class GameDetailView : UserControl
         _game = null;
         _mainViewModel = null;
         DataContext = null;
+        ResetSharedTransition();
+    }
+
+    /// <summary>
+    /// Leaves the detail view in a quiet, measured state while the cover itself
+    /// is still travelling above it. This prevents a second cover from flashing.
+    /// </summary>
+    public void PrepareForSharedTransition()
+    {
+        _sharedTransitionPrepared = true;
+        foreach (var element in SharedTransitionElements())
+        {
+            element.BeginAnimation(UIElement.OpacityProperty, null);
+            element.Opacity = 0;
+        }
+        DetailCoverImage.BeginAnimation(UIElement.OpacityProperty, null);
+        DetailCoverImage.Opacity = 0;
+    }
+
+    /// <summary>Reveals detail content behind the travelling cover with a short stagger.</summary>
+    public void PlaySharedDetailEntrance()
+    {
+        MotionBehavior.PlayEntrance(DetailHeaderPanel, fromY: -8, pace: AppMotion.Pace.Content, initialOpacity: 0);
+        MotionBehavior.PlayEntrance(DetailNavigationBar, fromY: -6, order: 1, pace: AppMotion.Pace.Content, initialOpacity: 0);
+        MotionBehavior.PlayEntrance(DetailScrollViewer, fromY: 8, order: 2, pace: AppMotion.Pace.Page, initialOpacity: 0);
+        MotionBehavior.PlayEntrance(DetailHeroInfoPanel, fromX: 14, order: 3, pace: AppMotion.Pace.Content, initialOpacity: 0);
+        MotionBehavior.PlayEntrance(DetailMetricStrip, fromY: 8, order: 4, pace: AppMotion.Pace.Content, initialOpacity: 0);
+        DetailCoverImage.BeginAnimation(UIElement.OpacityProperty, null);
+        DetailCoverImage.BeginAnimation(UIElement.OpacityProperty,
+            AppMotion.To(1, AppMotion.Pace.Content, from: 0,
+                delay: AppMotion.Enabled ? TimeSpan.FromMilliseconds(170) : TimeSpan.Zero));
+    }
+
+    /// <summary>Fades the detail chrome quickly so the reverse cover flight stays legible.</summary>
+    public void PrepareForSharedTransitionExit()
+    {
+        foreach (var element in SharedTransitionElements())
+        {
+            element.BeginAnimation(UIElement.OpacityProperty, null);
+            element.BeginAnimation(UIElement.OpacityProperty,
+                AppMotion.To(0, AppMotion.Pace.Exit, AppMotion.Curve.Exit));
+        }
+        DetailCoverImage.BeginAnimation(UIElement.OpacityProperty, null);
+        DetailCoverImage.BeginAnimation(UIElement.OpacityProperty,
+            AppMotion.To(0, AppMotion.Pace.Exit, AppMotion.Curve.Exit));
+    }
+
+    public void CompleteSharedTransition()
+    {
+        DetailCoverImage.BeginAnimation(UIElement.OpacityProperty, null);
+        DetailCoverImage.Opacity = 1;
+        _sharedTransitionPrepared = false;
+    }
+
+    private IEnumerable<FrameworkElement> SharedTransitionElements()
+    {
+        yield return DetailHeaderPanel;
+        yield return DetailNavigationBar;
+        yield return DetailScrollViewer;
+        yield return DetailHeroInfoPanel;
+        yield return DetailMetricStrip;
+    }
+
+    private void ResetSharedTransition()
+    {
+        _sharedTransitionPrepared = false;
+        foreach (var element in SharedTransitionElements())
+        {
+            element.BeginAnimation(UIElement.OpacityProperty, null);
+            element.Opacity = 1;
+        }
+        DetailCoverImage.BeginAnimation(UIElement.OpacityProperty, null);
+        DetailCoverImage.Opacity = 1;
     }
 
     private void UpdateLocalDetails()
@@ -196,6 +281,7 @@ public partial class GameDetailView : UserControl
             cancellationToken.ThrowIfCancellationRequested();
             if (_game != game) return;
             _saveRecord = record;
+            SetSaveSectionVisible(record.HasSaveData);
             SaveLocationCountText.Text = record.Locations.Count.ToString();
             SaveFileCountText.Text = record.FileCount.ToString();
             SaveLastModifiedText.Text = record.LastModifiedText;
@@ -219,6 +305,9 @@ public partial class GameDetailView : UserControl
         {
             if (_game == game)
             {
+                // A failed scan is not an empty result: keep the section visible
+                // so the error and recovery controls remain discoverable.
+                SetSaveSectionVisible(true);
                 SaveModeText.Text = "识别失败";
                 SaveStatusText.Text = $"存档识别失败：{ex.GetBaseException().Message}";
             }
@@ -1104,11 +1193,14 @@ public partial class GameDetailView : UserControl
     private void OverviewTab_Click(object sender, RoutedEventArgs e) =>
         NavigateDetailSection(OverviewSection, OverviewTabButton);
 
-    private void PlayProfileTab_Click(object sender, RoutedEventArgs e) =>
-        NavigateDetailSection(PlayProfileSection, PlayProfileTabButton);
-
     private void SaveTab_Click(object sender, RoutedEventArgs e) =>
         NavigateDetailSection(SaveManagementSection, SaveTabButton);
+
+    private void ShowSaveSettings_Click(object sender, RoutedEventArgs e)
+    {
+        SetSaveSectionVisible(true);
+        NavigateDetailSection(SaveManagementSection, SaveTabButton);
+    }
 
     private void DlcTab_Click(object sender, RoutedEventArgs e) =>
         NavigateDetailSection(DlcManagementSection, DlcTabButton);
@@ -1125,19 +1217,49 @@ public partial class GameDetailView : UserControl
     private void SetActiveDetailTab(Button activeButton)
     {
         if (OverviewTabButton is null) return;
-        foreach (var button in new[] { OverviewTabButton, PlayProfileTabButton, SaveTabButton, DlcTabButton, AchievementTabButton })
-        {
-            button.ClearValue(BackgroundProperty);
-            button.ClearValue(ForegroundProperty);
-        }
-        activeButton.Background = new SolidColorBrush(Color.FromRgb(0x1A, 0x4A, 0x6C));
-        activeButton.Foreground = new SolidColorBrush(Color.FromRgb(0x66, 0xC5, 0xFF));
+        foreach (var button in new[] { OverviewTabButton, SaveTabButton, DlcTabButton, AchievementTabButton })
+            button.Tag = ReferenceEquals(button, activeButton) ? "active" : null;
+    }
+
+    private void SetSaveSectionVisible(bool visible)
+    {
+        SaveManagementSection.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        SaveTabButton.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        if (!visible && Equals(SaveTabButton.Tag, "active"))
+            NavigateDetailSection(OverviewSection, OverviewTabButton);
+    }
+
+    private void DlcPlayProfileLayout_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        // Keep DLC and schemes adjacent on wide windows; stack at narrow sizes
+        // so neither the DLC controls nor profile commands are clipped.
+        var stack = e.NewSize.Width < 820;
+        DlcPlayProfileLayout.ColumnDefinitions[1].Width = new GridLength(stack ? 0 : 16);
+        DlcPlayProfileLayout.ColumnDefinitions[2].Width = new GridLength(stack ? 0 : 288);
+        DlcPlayProfileLayout.RowDefinitions[1].Height = stack ? GridLength.Auto : new GridLength(0);
+        Grid.SetColumn(PlayProfileSection, stack ? 0 : 2);
+        Grid.SetRow(PlayProfileSection, stack ? 1 : 0);
+        PlayProfileSection.Margin = stack ? new Thickness(0, 16, 0, 0) : new Thickness(0);
+        PlayProfileSection.BorderThickness = stack ? new Thickness(0, 1, 0, 0) : new Thickness(1, 0, 0, 0);
+        PlayProfileSection.Padding = stack ? new Thickness(0, 16, 0, 0) : new Thickness(16, 0, 0, 0);
+    }
+
+    private void HeroMoreActions_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button || button.ContextMenu is null) return;
+        button.ContextMenu.PlacementTarget = button;
+        button.ContextMenu.IsOpen = true;
     }
 
     private void GameDetailView_PreviewKeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key != Key.Escape) return;
         e.Handled = true;
+        if (HeroMoreActionsButton.ContextMenu?.IsOpen == true)
+        {
+            HeroMoreActionsButton.ContextMenu.IsOpen = false;
+            return;
+        }
         CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 
@@ -1552,22 +1674,7 @@ public partial class GameDetailView : UserControl
 
     private static void AnimateReveal(FrameworkElement element)
     {
-        element.BeginAnimation(OpacityProperty, null);
-        element.Opacity = 0;
-        var transform = new TranslateTransform(0, -6);
-        element.RenderTransform = transform;
-        element.BeginAnimation(
-            OpacityProperty,
-            new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180))
-            {
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
-            });
-        transform.BeginAnimation(
-            TranslateTransform.YProperty,
-            new DoubleAnimation(-6, 0, TimeSpan.FromMilliseconds(180))
-            {
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
-            });
+        MotionBehavior.PlayEntrance(element, fromY: -6, pace: AppMotion.Pace.Content);
     }
 
     private static string? TryResolveInstallPath(string? manifestPath)

@@ -13,7 +13,7 @@
     <Title>MJJsteamtools</Title>
     <Product>MJJsteamtools</Product>
     <Company>MJJsteamtools</Company>
-    <Version>2.7.0</Version>
+    <Version>2.7.1</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -22,6 +22,7 @@
     <Resource Include="Assets\brand-logo.png" />
     <Resource Include="Assets\brand-mark.png" />
     <Resource Include="Assets\brand-mark.svg" />
+    <Resource Include="Assets\Navigation\*.svg" />
   </ItemGroup>
 
   <ItemGroup>
@@ -71,3 +72,4 @@
   </Target>
 
 </Project>
+

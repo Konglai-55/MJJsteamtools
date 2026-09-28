@@ -1,7 +1,7 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using System.Windows.Media.Animation;
+using SteamLuaManager.Controls;
 
 namespace SteamLuaManager.Views;
 
@@ -47,13 +47,7 @@ public partial class SettingsView : UserControl
         }
 
         if (sender is TabControl tc &&
-            tc.Template.FindName("ContentArea", tc) is UIElement content)
-        {
-            var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(220))
-            {
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
-            };
-            content.BeginAnimation(UIElement.OpacityProperty, fadeIn);
-        }
+            tc.Template.FindName("ContentArea", tc) is FrameworkElement content)
+            MotionBehavior.PlayEntrance(content, fromY: 6, pace: AppMotion.Pace.Content);
     }
 }

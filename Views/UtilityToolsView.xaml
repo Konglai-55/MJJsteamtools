@@ -192,6 +192,22 @@
                 </StackPanel>
             </Border>
 
+            <Border Margin="0,16,0,0" Padding="18,16" CornerRadius="6"
+                    Background="{DynamicResource SteamSurfaceBrush}">
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <StackPanel Margin="0,0,18,0">
+                        <TextBlock Text="清单缓存管理" FontSize="16" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource SteamTextPrimaryBrush}"/>
+                        <TextBlock Text="扫描 Steam 本地清单、导入清单文件，或从账号获取已拥有游戏的清单。"
+                                   Margin="0,6,0,0" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource SteamTextSecondaryBrush}"/>
+                    </StackPanel>
+                    <Button Grid.Column="1" Content="管理清单缓存" Padding="16,10"
+                            VerticalAlignment="Center" Click="OpenManifestCache_Click"/>
+                </Grid>
+            </Border>
+
             <TextBlock x:Name="ActionStatusText"
                        Margin="2,12,0,0"
                        FontSize="12"

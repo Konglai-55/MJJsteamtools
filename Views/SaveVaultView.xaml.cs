@@ -8,6 +8,7 @@ using System.Windows.Data;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using iNKORE.UI.WPF.Modern.Controls;
+using SteamLuaManager.Controls;
 using SteamLuaManager.Models;
 using SteamLuaManager.Services;
 using SteamLuaManager.ViewModels;
@@ -404,15 +405,7 @@ public partial class SaveVaultView : UserControl
 
     private static void Reveal(FrameworkElement element)
     {
-        element.Opacity = 0;
-        var transform = new TranslateTransform(12, 0);
-        element.RenderTransform = transform;
-        element.BeginAnimation(OpacityProperty,
-            new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180))
-            { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
-        transform.BeginAnimation(TranslateTransform.XProperty,
-            new DoubleAnimation(12, 0, TimeSpan.FromMilliseconds(180))
-            { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
+        MotionBehavior.PlayEntrance(element, fromX: 12, pace: AppMotion.Pace.Content);
     }
 
     private static string FormatBytes(long bytes)

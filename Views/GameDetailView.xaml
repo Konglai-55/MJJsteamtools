@@ -1,4 +1,4 @@
-<UserControl x:Class="SteamLuaManager.Views.GameDetailView"
+﻿<UserControl x:Class="SteamLuaManager.Views.GameDetailView"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
@@ -17,6 +17,7 @@
             <Setter Property="Height" Value="30"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Focusable" Value="True"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ToggleButton">
@@ -34,6 +35,9 @@
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Track" Property="Background" Value="#152333"/>
                             </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Track" Property="Background" Value="#26465D"/>
+                            </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.65"/>
                             </Trigger>
@@ -44,10 +48,11 @@
         </Style>
 
         <Style x:Key="MetricCardStyle" TargetType="Border">
-            <Setter Property="Background" Value="#16202D"/>
-            <Setter Property="CornerRadius" Value="7"/>
-            <Setter Property="Padding" Value="14,12"/>
-            <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="Background" Value="{DynamicResource SteamSurfaceBrush}"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="16,15"/>
+            <Setter Property="Margin" Value="0,0,10,0"/>
+            <Setter Property="Effect" Value="{StaticResource SteamSectionShadowEffect}"/>
         </Style>
 
         <Style x:Key="MetricLabelStyle" TargetType="TextBlock">
@@ -56,21 +61,90 @@
         </Style>
 
         <Style x:Key="MetricValueStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontSize" Value="18"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Margin" Value="0,5,0,0"/>
             <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
             <Setter Property="Foreground" Value="{DynamicResource SteamTextPrimaryBrush}"/>
         </Style>
 
-        <Style x:Key="SectionCardStyle" TargetType="Border">
-            <Setter Property="Background" Value="#16202D"/>
+        <Style x:Key="SaveMetricValueStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,7,0,0"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+            <Setter Property="Foreground" Value="{DynamicResource SteamTextPrimaryBrush}"/>
+            <Style.Triggers>
+                <Trigger Property="Text" Value="0">
+                    <Setter Property="Foreground" Value="{DynamicResource SteamTextSecondaryBrush}"/>
+                </Trigger>
+                <Trigger Property="Text" Value="—">
+                    <Setter Property="Foreground" Value="{DynamicResource SteamTextSecondaryBrush}"/>
+                </Trigger>
+                <Trigger Property="Text" Value="暂无存档">
+                    <Setter Property="Foreground" Value="{DynamicResource SteamTextSecondaryBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="SaveMetricCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource SteamShellBrush}"/>
             <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="18"/>
+            <Setter Property="Padding" Value="14,12"/>
+        </Style>
+
+        <Style x:Key="DetailNavTabStyle" TargetType="Button">
+            <Setter Property="Height" Value="46"/>
+            <Setter Property="MinWidth" Value="88"/>
+            <Setter Property="Padding" Value="17,0"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{DynamicResource SteamTextSecondaryBrush}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid Height="46" Background="Transparent">
+                            <Border x:Name="HoverSurface" Margin="2,3,2,7" CornerRadius="6"
+                                    Background="Transparent"/>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"/>
+                            <Border x:Name="ActiveLine" Height="3" Margin="16,0,16,0"
+                                    VerticalAlignment="Bottom" CornerRadius="2,2,0,0"
+                                    Background="{DynamicResource SteamAccentBrush}" Opacity="0"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="HoverSurface" Property="Background" Value="#23384B"/>
+                            </Trigger>
+                            <Trigger Property="Tag" Value="active">
+                                <Setter Property="Foreground" Value="{DynamicResource SteamAccentBrush}"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter TargetName="HoverSurface" Property="Background" Value="#1B3448"/>
+                                <Setter TargetName="ActiveLine" Property="Opacity" Value="1"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="HoverSurface" Property="Background" Value="#2A465B"/>
+                                <Setter TargetName="ActiveLine" Property="Opacity" Value="1"/>
+                                <Setter TargetName="ActiveLine" Property="Height" Value="4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SectionCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource SteamSurfaceBrush}"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="20"/>
+            <Setter Property="Effect" Value="{StaticResource SteamSectionShadowEffect}"/>
         </Style>
 
         <Style x:Key="SectionTitleStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontSize" Value="17"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Foreground" Value="{DynamicResource SteamTextPrimaryBrush}"/>
         </Style>
@@ -82,7 +156,7 @@
         </Style>
 
         <Style x:Key="FieldValueStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontSize" Value="13"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
             <Setter Property="Foreground" Value="{DynamicResource SteamTextSecondaryBrush}"/>
         </Style>
@@ -131,29 +205,30 @@
         </Style>
     </UserControl.Resources>
 
-    <Grid Margin="22,16,22,20">
+    <Grid Margin="24,18,24,20">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <Grid Margin="0,0,0,14">
+        <Grid x:Name="DetailHeaderPanel" Margin="0,0,0,16">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <Button Width="36" Height="36" Padding="0" Margin="0,0,10,0"
+            <Button Width="38" Height="38" Padding="0" Margin="0,0,14,0"
                     Style="{StaticResource SteamSecondaryButtonStyle}"
-                    Click="BackButton_Click" ToolTip="返回游戏库">
+                    Click="BackButton_Click" ToolTip="返回游戏库"
+                    AutomationProperties.Name="返回游戏库">
                 <ui:FontIcon Glyph="&#xE72B;" FontSize="16"/>
             </Button>
             <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                <TextBlock Text="游戏详情" FontSize="23" FontWeight="SemiBold"
+                <TextBlock Text="游戏库  /  游戏详情" FontSize="12" FontWeight="SemiBold"
+                           Foreground="{DynamicResource SteamAccentBrush}"/>
+                <TextBlock Text="游戏详情" FontSize="22" FontWeight="SemiBold" Margin="0,2,0,0"
                            Foreground="{DynamicResource SteamTextPrimaryBrush}"/>
-                <TextBlock Text="管理入库状态、存档、DLC、成就与清单版本"
-                           FontSize="11" Margin="0,2,0,0"
-                           Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
             </StackPanel>
             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                 <Button Style="{StaticResource SteamSecondaryButtonStyle}" Padding="12,7"
@@ -173,57 +248,117 @@
             </StackPanel>
         </Grid>
 
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
-                      HorizontalScrollBarVisibility="Disabled" Padding="0,0,12,0">
-            <StackPanel>
-                <Border Background="#131D29" CornerRadius="7" Padding="6" Margin="0,0,0,10"
-                        BorderBrush="#263746" BorderThickness="1">
+        <!-- A quiet, persistent section rail; selection is conveyed by text and underline. -->
+        <Border x:Name="DetailNavigationBar" Grid.Row="1" Background="Transparent" BorderBrush="#344657"
+                BorderThickness="0,0,0,1" Margin="0,0,0,16">
+            <StackPanel Orientation="Horizontal">
+                <Button x:Name="OverviewTabButton" Style="{StaticResource DetailNavTabStyle}"
+                        AutomationProperties.Name="概览" Click="OverviewTab_Click">
                     <StackPanel Orientation="Horizontal">
-                        <Button x:Name="OverviewTabButton" Content="概览" Style="{StaticResource SteamSecondaryButtonStyle}"
-                                Padding="18,7" Margin="0,0,5,0" Click="OverviewTab_Click"/>
-                        <Button x:Name="PlayProfileTabButton" Content="游玩方案" Style="{StaticResource SteamSecondaryButtonStyle}"
-                                Padding="18,7" Margin="0,0,5,0" Click="PlayProfileTab_Click"/>
-                        <Button x:Name="SaveTabButton" Content="存档" Style="{StaticResource SteamSecondaryButtonStyle}"
-                                Padding="18,7" Margin="0,0,5,0" Click="SaveTab_Click"/>
-                        <Button x:Name="DlcTabButton" Content="DLC" Style="{StaticResource SteamSecondaryButtonStyle}"
-                                Padding="18,7" Margin="0,0,5,0" Click="DlcTab_Click"/>
-                        <Button x:Name="AchievementTabButton" Content="成就" Style="{StaticResource SteamSecondaryButtonStyle}"
-                                Padding="18,7" Click="AchievementTab_Click"/>
+                        <ui:FontIcon Glyph="&#xE80F;" FontSize="14" Margin="0,0,8,0"/>
+                        <TextBlock Text="概览" VerticalAlignment="Center"/>
                     </StackPanel>
-                </Border>
+                </Button>
+                <Button x:Name="SaveTabButton" Style="{StaticResource DetailNavTabStyle}"
+                        AutomationProperties.Name="存档保护" Click="SaveTab_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <ui:FontIcon Glyph="&#xE753;" FontSize="14" Margin="0,0,8,0"/>
+                        <TextBlock Text="存档保护" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <Button x:Name="DlcTabButton" Style="{StaticResource DetailNavTabStyle}"
+                        AutomationProperties.Name="DLC 管理" Click="DlcTab_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <ui:FontIcon Glyph="&#xE8F1;" FontSize="14" Margin="0,0,8,0"/>
+                        <TextBlock Text="DLC 管理" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <Button x:Name="AchievementTabButton" Style="{StaticResource DetailNavTabStyle}"
+                        Margin="0" AutomationProperties.Name="成就" Click="AchievementTab_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <ui:FontIcon Glyph="&#xE735;" FontSize="14" Margin="0,0,8,0"/>
+                        <TextBlock Text="成就" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Border>
 
-                <Border x:Name="OverviewSection" Background="{DynamicResource SteamSurfaceBrush}" CornerRadius="8" Padding="18">
+        <ScrollViewer x:Name="DetailScrollViewer" Grid.Row="2" VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled" Padding="0,0,10,0">
+            <StackPanel>
+
+                <Border x:Name="OverviewSection" Background="{DynamicResource SteamSurfaceBrush}"
+                        CornerRadius="10" Effect="{StaticResource SteamSectionShadowEffect}">
                     <Grid>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="320"/>
-                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="2*"/>
+                            <ColumnDefinition Width="3*"/>
                         </Grid.ColumnDefinitions>
 
-                        <controls:ClippingBorder Width="320" Height="180" CornerRadius="6"
-                                                 Background="{DynamicResource SteamShellBrush}" HorizontalAlignment="Left">
+                        <controls:ClippingBorder Height="212" CornerRadius="10,0,0,10"
+                                                 Background="{DynamicResource SteamShellBrush}">
                             <Grid>
-                                <Image Source="{Binding CoverImagePath, Converter={StaticResource FilePathToImageConverter}}"
+                                <Image x:Name="DetailCoverImage" Source="{Binding CoverImagePath, Converter={StaticResource FilePathToImageConverter}}"
                                        Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality"/>
-                                <Rectangle Fill="#2A000000" VerticalAlignment="Bottom" Height="56"/>
-                                <TextBlock Text="{Binding AppId, StringFormat=APP {0}}"
-                                           VerticalAlignment="Bottom" Margin="14,0,0,13"
-                                           FontSize="11" Foreground="#E5EDF5"/>
                             </Grid>
                         </controls:ClippingBorder>
 
-                        <Grid Grid.Column="1" Margin="22,2,0,0">
+                        <Grid x:Name="DetailHeroInfoPanel" Grid.Column="1" Margin="22,20,22,18">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="*"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
                             <StackPanel>
-                                <TextBlock Text="{Binding GameName}" FontSize="25" FontWeight="SemiBold"
-                                           TextWrapping="Wrap" MaxHeight="68"
+                                <Grid>
+                                    <TextBlock Text="游戏概览" FontSize="10" FontWeight="Bold"
+                                               VerticalAlignment="Center"
+                                               Foreground="{DynamicResource SteamAccentBrush}"/>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <Button Width="32" Height="32" Padding="0" Margin="0,0,5,0"
+                                                Style="{StaticResource SteamSecondaryButtonStyle}"
+                                                Click="OpenStoreButton_Click" ToolTip="Steam 商店"
+                                                AutomationProperties.Name="打开 Steam 商店">
+                                            <ui:FontIcon Glyph="&#xE774;" FontSize="14"/>
+                                        </Button>
+                                        <Button Width="32" Height="32" Padding="0" Margin="0,0,5,0"
+                                                Style="{StaticResource SteamSecondaryButtonStyle}"
+                                                Click="QueryDlcButton_Click" ToolTip="查询 DLC"
+                                                AutomationProperties.Name="查询 DLC">
+                                            <ui:FontIcon Glyph="&#xE8F1;" FontSize="14"/>
+                                        </Button>
+                                        <Button Width="32" Height="32" Padding="0" Margin="0,0,5,0"
+                                                Style="{StaticResource SteamSecondaryButtonStyle}"
+                                                Click="RefreshButton_Click" ToolTip="刷新游戏信息"
+                                                AutomationProperties.Name="刷新游戏信息">
+                                            <ui:FontIcon Glyph="&#xE72C;" FontSize="14"/>
+                                        </Button>
+                                        <Button x:Name="HeroMoreActionsButton" Width="32" Height="32" Padding="0"
+                                                Style="{StaticResource SteamSecondaryButtonStyle}"
+                                                Click="HeroMoreActions_Click" ToolTip="更多游戏操作"
+                                                AutomationProperties.Name="更多游戏操作">
+                                            <ui:FontIcon Glyph="&#xE712;" FontSize="15"/>
+                                            <Button.ContextMenu>
+                                                <ContextMenu Background="#162432" BorderBrush="#31485B"
+                                                             Foreground="{DynamicResource SteamTextPrimaryBrush}" Padding="5">
+                                                    <MenuItem Header="固定到最新版本" Click="PinLatestButton_Click"/>
+                                                    <MenuItem Header="固定到当前安装版本" Click="PinCurrentButton_Click"/>
+                                                    <MenuItem Header="取消版本固定" Click="UnpinButton_Click"/>
+                                                    <Separator/>
+                                                    <MenuItem Header="存档与云同步设置" Click="ShowSaveSettings_Click"/>
+                                                    <Separator/>
+                                                    <MenuItem Header="删除 Lua" Click="DeleteLuaButton_Click"/>
+                                                </ContextMenu>
+                                            </Button.ContextMenu>
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
+                                <TextBlock Text="{Binding GameName}" FontSize="27" FontWeight="SemiBold"
+                                           Margin="0,6,0,0" TextWrapping="Wrap" MaxHeight="74"
                                            Foreground="{DynamicResource SteamTextPrimaryBrush}"/>
                                 <TextBlock Text="{Binding AppId, StringFormat=AppID: {0}}" FontSize="12"
-                                           Margin="0,6,0,0" Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
-                                <StackPanel Orientation="Horizontal" Margin="0,15,0,0">
-                                    <Border x:Name="ImportStatusBadge" CornerRadius="4" Padding="9,5">
+                                           Margin="0,7,0,0" Foreground="{DynamicResource SteamTextSecondaryBrush}"/>
+                                <WrapPanel Margin="0,16,0,0">
+                                    <Border x:Name="ImportStatusBadge" CornerRadius="5" Padding="9,5" Margin="0,0,8,5">
                                         <Border.Style>
                                             <Style TargetType="Border">
                                                 <Setter Property="Background" Value="#193B55"/>
@@ -249,20 +384,24 @@
                                             </TextBlock.Style>
                                         </TextBlock>
                                     </Border>
-                                    <Border Background="#202B38" CornerRadius="4" Padding="9,5" Margin="8,0,0,0">
+                                    <Border Background="#263B49" CornerRadius="5" Padding="9,5" Margin="0,0,0,5">
                                         <TextBlock x:Name="HeroInstallStatusText" Text="正在检查本地安装…"
                                                    FontSize="11" Foreground="{DynamicResource SteamTextSecondaryBrush}"/>
                                     </Border>
-                                </StackPanel>
+                                </WrapPanel>
                             </StackPanel>
 
-                            <Grid Grid.Row="1" Margin="0,16,0,0">
+                            <Grid Grid.Row="1" Margin="0,12,0,0">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Text="入库开关" FontSize="12" VerticalAlignment="Center"
-                                           Foreground="{DynamicResource SteamTextSecondaryBrush}"/>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="加入游戏库" FontSize="13" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource SteamTextPrimaryBrush}"/>
+                                    <TextBlock Text="关闭后暂时停用这款游戏的入库配置" FontSize="11" Margin="0,3,0,0"
+                                               TextWrapping="Wrap" Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                                </StackPanel>
                                 <ToggleButton x:Name="DetailImportToggle" Grid.Column="1"
                                               Style="{StaticResource DetailToggleStyle}"
                                               IsChecked="{Binding IsDisabled, Converter={StaticResource BoolInvertConverter}, Mode=OneWay}"
@@ -270,172 +409,61 @@
                                               ToolTip="开启：已入库；关闭：禁止入库"/>
                             </Grid>
                         </Grid>
+
                     </Grid>
                 </Border>
 
-                <Border x:Name="PlayProfileSection" Style="{StaticResource SectionCardStyle}" Margin="0,12,0,0">
-                    <StackPanel>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <StackPanel>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="一键切换游玩方案" Style="{StaticResource SectionTitleStyle}"/>
-                                    <Border Background="#193B55" CornerRadius="4" Padding="8,3" Margin="10,0,0,0"
-                                            VerticalAlignment="Center">
-                                        <TextBlock Text="本机保存" FontSize="10" Foreground="{DynamicResource SteamAccentBrush}"/>
-                                    </Border>
-                                </StackPanel>
-                                <TextBlock Text="把 DLC 组合、启动参数和存档保护保存成方案；应用成功后再启动游戏。"
-                                           FontSize="11" Margin="0,4,0,0"
-                                           Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
-                            </StackPanel>
-                            <Button x:Name="CreatePlayProfileButton" Grid.Column="1" Content="保存当前为新方案"
-                                    Style="{StaticResource SteamSecondaryButtonStyle}" Padding="12,7"
-                                    IsEnabled="False" Click="CreatePlayProfile_Click"/>
-                        </Grid>
-
-                        <Border x:Name="PlayProfileResultBar" Background="#172A29" CornerRadius="6"
-                                Padding="11,8" Margin="0,12,0,0" Visibility="Collapsed">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <ui:FontIcon x:Name="PlayProfileResultIcon" Glyph="&#xE73E;" FontSize="13"
-                                             Foreground="{DynamicResource SteamGreenBrush}" VerticalAlignment="Center"/>
-                                <TextBlock x:Name="PlayProfileResultText" Grid.Column="1" Margin="9,0,0,0"
-                                           FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center"
-                                           Foreground="{DynamicResource SteamTextSecondaryBrush}"/>
-                            </Grid>
-                        </Border>
-
-                        <ItemsControl x:Name="PlayProfileItems" Margin="-6,12,-6,-6">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <WrapPanel/>
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border Width="268" MinHeight="174" Margin="6" Padding="14"
-                                            BorderThickness="1"
-                                            CornerRadius="7" controls:MotionBehavior.IsEntranceEnabled="True">
-                                        <Border.Style>
-                                            <Style TargetType="Border">
-                                                <Setter Property="Background" Value="#111A25"/>
-                                                <Setter Property="BorderBrush" Value="#294255"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsActive}" Value="True">
-                                                        <Setter Property="BorderBrush" Value="{DynamicResource SteamAccentBrush}"/>
-                                                        <Setter Property="Background" Value="#142537"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Border.Style>
-                                        <Grid>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="*"/>
-                                                <RowDefinition Height="Auto"/>
-                                            </Grid.RowDefinitions>
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-                                                <StackPanel>
-                                                    <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold"
-                                                               TextTrimming="CharacterEllipsis"
-                                                               Foreground="{DynamicResource SteamTextPrimaryBrush}"/>
-                                                    <TextBlock Text="{Binding TypeText}" FontSize="10" Margin="0,3,0,0"
-                                                               Foreground="{DynamicResource SteamAccentBrush}"/>
-                                                </StackPanel>
-                                                <Border Grid.Column="1" Background="#225CCE" CornerRadius="4" Padding="7,3"
-                                                        VerticalAlignment="Top"
-                                                        Visibility="{Binding IsActive, Converter={StaticResource BoolToVisibilityConverter}}">
-                                                    <TextBlock Text="当前" FontSize="10" Foreground="White"/>
-                                                </Border>
-                                            </Grid>
-                                            <StackPanel Grid.Row="1" Margin="0,12,0,12">
-                                                <StackPanel Orientation="Horizontal">
-                                                    <ui:FontIcon Glyph="&#xE713;" FontSize="11" Width="16"
-                                                                 Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
-                                                    <TextBlock Text="{Binding DlcSummary}" FontSize="11" Margin="6,0,0,0"
-                                                               Foreground="{DynamicResource SteamTextSecondaryBrush}"/>
-                                                </StackPanel>
-                                                <StackPanel Orientation="Horizontal" Margin="0,7,0,0">
-                                                    <ui:FontIcon Glyph="&#xE756;" FontSize="11" Width="16"
-                                                                 Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
-                                                    <TextBlock Text="{Binding LaunchSummary}" FontSize="11" Margin="6,0,0,0"
-                                                               MaxWidth="210" TextTrimming="CharacterEllipsis"
-                                                               Foreground="{DynamicResource SteamTextSecondaryBrush}"/>
-                                                </StackPanel>
-                                            </StackPanel>
-                                            <Grid Grid.Row="2">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto"/>
-                                                </Grid.ColumnDefinitions>
-                                                <StackPanel Orientation="Horizontal">
-                                                    <Button Content="仅应用" Tag="{Binding}" Padding="10,6" Margin="0,0,6,0"
-                                                            Style="{StaticResource SteamSecondaryButtonStyle}"
-                                                            Click="ApplyPlayProfile_Click"/>
-                                                    <Button Content="应用并启动" Tag="{Binding}" Padding="11,6"
-                                                            Style="{StaticResource SteamPrimaryButtonStyle}"
-                                                            Click="ApplyAndLaunchPlayProfile_Click"/>
-                                                </StackPanel>
-                                                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="7,0,0,0"
-                                                            Visibility="{Binding CanDelete, Converter={StaticResource BoolToVisibilityConverter}}">
-                                                    <Button Width="30" Height="30" Padding="0" Margin="0,0,4,0" Tag="{Binding}"
-                                                            ToolTip="编辑方案" Style="{StaticResource SteamSecondaryButtonStyle}"
-                                                            Click="EditPlayProfile_Click">
-                                                        <ui:FontIcon Glyph="&#xE70F;" FontSize="12"/>
-                                                    </Button>
-                                                    <Button Width="30" Height="30" Padding="0" Tag="{Binding}"
-                                                            ToolTip="删除方案" Style="{StaticResource DangerButtonStyle}"
-                                                            Click="DeletePlayProfile_Click">
-                                                        <ui:FontIcon Glyph="&#xE74D;" FontSize="12"/>
-                                                    </Button>
-                                                </StackPanel>
-                                            </Grid>
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </StackPanel>
-                </Border>
-
-                <UniformGrid Columns="4" Margin="0,12,0,0">
+                <UniformGrid x:Name="DetailMetricStrip" Columns="4" Margin="0,12,0,0">
                     <Border Style="{StaticResource MetricCardStyle}">
                         <StackPanel>
-                            <TextBlock Text="DEPOT 清单" Style="{StaticResource MetricLabelStyle}"/>
+                            <DockPanel>
+                                <ui:FontIcon Glyph="&#xE8A5;" FontSize="17" Foreground="{DynamicResource SteamAccentBrush}"
+                                             DockPanel.Dock="Right"/>
+                                <TextBlock Text="DEPOT 清单" Style="{StaticResource MetricLabelStyle}" VerticalAlignment="Center"/>
+                            </DockPanel>
                             <TextBlock x:Name="DepotCountText" Text="0 个" Style="{StaticResource MetricValueStyle}"/>
+                            <Border Background="{DynamicResource SteamAccentBrush}" Height="3" CornerRadius="2"
+                                    Width="30" HorizontalAlignment="Left" Margin="0,13,0,0"/>
                         </StackPanel>
                     </Border>
                     <Border Style="{StaticResource MetricCardStyle}">
                         <StackPanel>
-                            <TextBlock Text="DLC 入库" Style="{StaticResource MetricLabelStyle}"/>
+                            <DockPanel>
+                                <ui:FontIcon Glyph="&#xE8F1;" FontSize="17" Foreground="{DynamicResource SteamGreenBrush}"
+                                             DockPanel.Dock="Right"/>
+                                <TextBlock Text="DLC 入库" Style="{StaticResource MetricLabelStyle}" VerticalAlignment="Center"/>
+                            </DockPanel>
                             <Grid Margin="0,5,0,0">
                                 <TextBlock x:Name="DlcSummaryText" Text="正在获取…" Style="{StaticResource MetricValueStyle}" Margin="0"/>
                                 <ui:ProgressRing x:Name="DlcLoadingRing" Width="16" Height="16" IsActive="True"
                                                  HorizontalAlignment="Right" VerticalAlignment="Center"/>
                             </Grid>
+                            <Border Background="{DynamicResource SteamGreenBrush}" Height="3" CornerRadius="2"
+                                    Width="30" HorizontalAlignment="Left" Margin="0,13,0,0"/>
                         </StackPanel>
                     </Border>
                     <Border Style="{StaticResource MetricCardStyle}">
                         <StackPanel>
-                            <TextBlock Text="版本状态" Style="{StaticResource MetricLabelStyle}"/>
+                            <DockPanel>
+                                <ui:FontIcon Glyph="&#xE787;" FontSize="17" Foreground="#E4BA77"
+                                             DockPanel.Dock="Right"/>
+                                <TextBlock Text="版本状态" Style="{StaticResource MetricLabelStyle}" VerticalAlignment="Center"/>
+                            </DockPanel>
                             <TextBlock x:Name="ManifestPinStatusText" Text="未固定" Style="{StaticResource MetricValueStyle}"/>
+                            <Border Background="#E4BA77" Height="3" CornerRadius="2"
+                                    Width="30" HorizontalAlignment="Left" Margin="0,13,0,0"/>
                         </StackPanel>
                     </Border>
                     <Border Style="{StaticResource MetricCardStyle}" Margin="0">
                         <StackPanel>
-                            <TextBlock Text="APP TOKEN" Style="{StaticResource MetricLabelStyle}"/>
+                            <DockPanel>
+                                <ui:FontIcon Glyph="&#xE8D7;" FontSize="17" Foreground="#B5A8E2"
+                                             DockPanel.Dock="Right"/>
+                                <TextBlock Text="APP TOKEN" Style="{StaticResource MetricLabelStyle}" VerticalAlignment="Center"/>
+                            </DockPanel>
                             <TextBlock x:Name="TokenStatusText" Text="未写入" Style="{StaticResource MetricValueStyle}"/>
+                            <Border Background="#B5A8E2" Height="3" CornerRadius="2"
+                                    Width="30" HorizontalAlignment="Left" Margin="0,13,0,0"/>
                         </StackPanel>
                     </Border>
                 </UniformGrid>
@@ -449,7 +477,13 @@
 
                     <Border Grid.Column="0" Style="{StaticResource SectionCardStyle}">
                         <StackPanel>
-                            <TextBlock Text="本地安装" Style="{StaticResource SectionTitleStyle}"/>
+                            <StackPanel Orientation="Horizontal">
+                                <ui:FontIcon Glyph="&#xE8B7;" FontSize="17" Margin="0,0,9,0"
+                                             Foreground="{DynamicResource SteamAccentBrush}"/>
+                                <TextBlock Text="本地安装" Style="{StaticResource SectionTitleStyle}"/>
+                            </StackPanel>
+                            <TextBlock Text="检查是否已下载，并快速定位游戏文件。" FontSize="11" Margin="0,5,0,4"
+                                       Foreground="{DynamicResource SteamTextTertiaryBrush}" TextWrapping="Wrap"/>
                             <TextBlock Text="安装状态" Style="{StaticResource FieldLabelStyle}"/>
                             <TextBlock x:Name="InstallStatusText" Text="正在检查…" Style="{StaticResource FieldValueStyle}"/>
                             <TextBlock Text="游戏目录" Style="{StaticResource FieldLabelStyle}"/>
@@ -463,7 +497,13 @@
 
                     <Border Grid.Column="2" Style="{StaticResource SectionCardStyle}">
                         <StackPanel>
-                            <TextBlock Text="Lua 清单" Style="{StaticResource SectionTitleStyle}"/>
+                            <StackPanel Orientation="Horizontal">
+                                <ui:FontIcon Glyph="&#xE943;" FontSize="17" Margin="0,0,9,0"
+                                             Foreground="{DynamicResource SteamGreenBrush}"/>
+                                <TextBlock Text="Lua 清单" Style="{StaticResource SectionTitleStyle}"/>
+                            </StackPanel>
+                            <TextBlock Text="查看入库配置的实际文件与更新时间。" FontSize="11" Margin="0,5,0,4"
+                                       Foreground="{DynamicResource SteamTextTertiaryBrush}" TextWrapping="Wrap"/>
                             <TextBlock Text="文件位置" Style="{StaticResource FieldLabelStyle}"/>
                             <TextBlock x:Name="LuaPathText" Text="未找到" Style="{StaticResource FieldValueStyle}"/>
                             <TextBlock Text="文件信息" Style="{StaticResource FieldLabelStyle}"/>
@@ -487,6 +527,8 @@
                             </Grid.ColumnDefinitions>
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal">
+                                    <ui:FontIcon Glyph="&#xE753;" FontSize="17" Margin="0,0,9,0"
+                                                 Foreground="{DynamicResource SteamGreenBrush}"/>
                                     <TextBlock Text="存档" Style="{StaticResource SectionTitleStyle}"/>
                                     <Border x:Name="SaveModeBadge" Background="#26323E" CornerRadius="4"
                                             Padding="8,3" Margin="10,0,0,0" VerticalAlignment="Center">
@@ -507,17 +549,50 @@
                         </Grid>
 
                         <UniformGrid Columns="4" Margin="0,15,0,0">
-                            <Border Background="{DynamicResource SteamShellBrush}" CornerRadius="6" Padding="12,10" Margin="0,0,8,0">
-                                <StackPanel><TextBlock Text="找到的文件夹" FontSize="10" Foreground="{DynamicResource SteamTextTertiaryBrush}"/><TextBlock x:Name="SaveLocationCountText" Text="—" FontSize="14" FontWeight="SemiBold" Margin="0,4,0,0"/></StackPanel>
+                            <Border Style="{StaticResource SaveMetricCardStyle}" Margin="0,0,8,0">
+                                <StackPanel>
+                                    <DockPanel>
+                                        <ui:FontIcon Glyph="&#xE8B7;" FontSize="15" DockPanel.Dock="Right"
+                                                     Foreground="{DynamicResource SteamGreenBrush}"/>
+                                        <TextBlock Text="找到的文件夹" FontSize="11"
+                                                   Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                                    </DockPanel>
+                                    <TextBlock x:Name="SaveLocationCountText" Text="—" Style="{StaticResource SaveMetricValueStyle}"/>
+                                </StackPanel>
                             </Border>
-                            <Border Background="{DynamicResource SteamShellBrush}" CornerRadius="6" Padding="12,10" Margin="0,0,8,0">
-                                <StackPanel><TextBlock Text="包含的文件" FontSize="10" Foreground="{DynamicResource SteamTextTertiaryBrush}"/><TextBlock x:Name="SaveFileCountText" Text="—" FontSize="14" FontWeight="SemiBold" Margin="0,4,0,0"/></StackPanel>
+                            <Border Style="{StaticResource SaveMetricCardStyle}" Margin="0,0,8,0">
+                                <StackPanel>
+                                    <DockPanel>
+                                        <ui:FontIcon Glyph="&#xE8A5;" FontSize="15" DockPanel.Dock="Right"
+                                                     Foreground="{DynamicResource SteamAccentBrush}"/>
+                                        <TextBlock Text="包含的文件" FontSize="11"
+                                                   Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                                    </DockPanel>
+                                    <TextBlock x:Name="SaveFileCountText" Text="—" Style="{StaticResource SaveMetricValueStyle}"/>
+                                </StackPanel>
                             </Border>
-                            <Border Background="{DynamicResource SteamShellBrush}" CornerRadius="6" Padding="12,10" Margin="0,0,8,0">
-                                <StackPanel><TextBlock Text="最后保存" FontSize="10" Foreground="{DynamicResource SteamTextTertiaryBrush}"/><TextBlock x:Name="SaveLastModifiedText" Text="—" FontSize="12" FontWeight="SemiBold" Margin="0,5,0,0" TextTrimming="CharacterEllipsis"/></StackPanel>
+                            <Border Style="{StaticResource SaveMetricCardStyle}" Margin="0,0,8,0">
+                                <StackPanel>
+                                    <DockPanel>
+                                        <ui:FontIcon Glyph="&#xE787;" FontSize="15" DockPanel.Dock="Right"
+                                                     Foreground="#D3B37C"/>
+                                        <TextBlock Text="最后保存" FontSize="11"
+                                                   Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                                    </DockPanel>
+                                    <TextBlock x:Name="SaveLastModifiedText" Text="—" FontSize="14"
+                                               Style="{StaticResource SaveMetricValueStyle}"/>
+                                </StackPanel>
                             </Border>
-                            <Border Background="{DynamicResource SteamShellBrush}" CornerRadius="6" Padding="12,10">
-                                <StackPanel><TextBlock Text="可恢复备份" FontSize="10" Foreground="{DynamicResource SteamTextTertiaryBrush}"/><TextBlock x:Name="SaveBackupCountText" Text="—" FontSize="14" FontWeight="SemiBold" Margin="0,4,0,0"/></StackPanel>
+                            <Border Style="{StaticResource SaveMetricCardStyle}">
+                                <StackPanel>
+                                    <DockPanel>
+                                        <ui:FontIcon Glyph="&#xE753;" FontSize="15" DockPanel.Dock="Right"
+                                                     Foreground="#B59BE9"/>
+                                        <TextBlock Text="可恢复备份" FontSize="11"
+                                                   Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                                    </DockPanel>
+                                    <TextBlock x:Name="SaveBackupCountText" Text="—" Style="{StaticResource SaveMetricValueStyle}"/>
+                                </StackPanel>
                             </Border>
                         </UniformGrid>
 
@@ -598,7 +673,18 @@
                     </StackPanel>
                 </Border>
 
-                <Border x:Name="DlcManagementSection" Style="{StaticResource SectionCardStyle}" Margin="0,12,0,0">
+                <Border Style="{StaticResource SectionCardStyle}" Margin="0,12,0,0">
+                    <Grid x:Name="DlcPlayProfileLayout" SizeChanged="DlcPlayProfileLayout_SizeChanged">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="0"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="16"/>
+                        <ColumnDefinition Width="288"/>
+                    </Grid.ColumnDefinitions>
+                <Border x:Name="DlcManagementSection" Background="Transparent">
                     <StackPanel>
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -607,6 +693,8 @@
                             </Grid.ColumnDefinitions>
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal">
+                                    <ui:FontIcon Glyph="&#xE8F1;" FontSize="17" Margin="0,0,9,0"
+                                                 Foreground="{DynamicResource SteamAccentBrush}"/>
                                     <TextBlock Text="DLC" Style="{StaticResource SectionTitleStyle}"/>
                                     <Border x:Name="DlcModeBadge" Background="#26323E" CornerRadius="4"
                                             Padding="8,3" Margin="10,0,0,0" VerticalAlignment="Center">
@@ -619,13 +707,11 @@
                                            FontSize="11" Margin="0,4,0,0"
                                            Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
                             </StackPanel>
-                            <Button x:Name="RefreshDlcsButton" Grid.Column="1"
-                                    Style="{StaticResource SteamSecondaryButtonStyle}"
-                                    Padding="11,6" Click="RefreshDlcsButton_Click">
-                                <StackPanel Orientation="Horizontal">
-                                    <ui:FontIcon Glyph="&#xE72C;" FontSize="12" Margin="0,0,6,0"/>
-                                    <TextBlock Text="刷新 DLC"/>
-                                </StackPanel>
+                            <Button x:Name="RefreshDlcsButton" Grid.Column="1" Width="32" Height="32"
+                                    Style="{StaticResource SteamSecondaryButtonStyle}" Padding="0"
+                                    ToolTip="刷新 DLC" AutomationProperties.Name="刷新 DLC"
+                                    Click="RefreshDlcsButton_Click">
+                                <ui:FontIcon Glyph="&#xE72C;" FontSize="14"/>
                             </Button>
                         </Grid>
 
@@ -785,8 +871,11 @@
                             <TextBlock x:Name="DlcPreviewCountText" VerticalAlignment="Center" FontSize="11"
                                        Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                <Button Content="在 Steam 中查看 DLC" Style="{StaticResource SteamSecondaryButtonStyle}"
-                                        Padding="11,7" Margin="0,0,8,0" Click="OpenStoreButton_Click"/>
+                                <Button Width="32" Height="32" Style="{StaticResource SteamSecondaryButtonStyle}"
+                                        Padding="0" Margin="0,0,8,0" Click="OpenStoreButton_Click"
+                                        ToolTip="在 Steam 中查看 DLC" AutomationProperties.Name="在 Steam 中查看 DLC">
+                                    <ui:FontIcon Glyph="&#xE774;" FontSize="14"/>
+                                </Button>
                                 <Button x:Name="ToggleDlcManagementButton" Content="管理全部 DLC"
                                         Style="{StaticResource SteamPrimaryButtonStyle}"
                                         Padding="12,7" Click="ToggleDlcManagement_Click"/>
@@ -877,8 +966,8 @@
                         </Border>
                     </StackPanel>
                 </Border>
-
-                <Border Style="{StaticResource SectionCardStyle}" Margin="0,12,0,0">
+                <Border x:Name="PlayProfileSection" Grid.Column="2" Background="Transparent"
+                        BorderBrush="#314457" BorderThickness="1,0,0,0" Padding="16,0,0,0">
                     <StackPanel>
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -886,30 +975,121 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <StackPanel>
-                                <TextBlock Text="快捷操作" Style="{StaticResource SectionTitleStyle}"/>
-                                <TextBlock Text="所有操作均沿用游戏库现有的确认与状态处理"
-                                           FontSize="11" Margin="0,3,0,0"
-                                           Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <ui:FontIcon Glyph="&#xE713;" FontSize="17" Margin="0,0,9,0"
+                                                 Foreground="{DynamicResource SteamAccentBrush}"/>
+                                    <TextBlock Text="游玩方案" Style="{StaticResource SectionTitleStyle}"/>
+                                </StackPanel>
                             </StackPanel>
-                            <Button Grid.Column="1" Content="刷新游戏信息"
-                                    Style="{StaticResource SteamSecondaryButtonStyle}"
-                                    Padding="11,6" Click="RefreshButton_Click"/>
+                            <Button x:Name="CreatePlayProfileButton" Grid.Column="1" Width="32" Height="32"
+                                    ToolTip="保存当前配置为新方案" AutomationProperties.Name="保存当前为新游玩方案"
+                                    Style="{StaticResource SteamSecondaryButtonStyle}" Padding="0" Margin="7,0,0,0"
+                                    IsEnabled="False" Click="CreatePlayProfile_Click">
+                                <ui:FontIcon Glyph="&#xE710;" FontSize="16"/>
+                            </Button>
                         </Grid>
-                        <WrapPanel Margin="0,15,0,0">
-                            <Button Content="Steam 商店" Style="{StaticResource SteamSecondaryButtonStyle}"
-                                    Padding="11,7" Margin="0,0,8,8" Click="OpenStoreButton_Click"/>
-                            <Button Content="查询 DLC" Style="{StaticResource SteamSecondaryButtonStyle}"
-                                    Padding="11,7" Margin="0,0,8,8" Click="QueryDlcButton_Click"/>
-                            <Button Content="固定到最新版本" Style="{StaticResource SteamSecondaryButtonStyle}"
-                                    Padding="11,7" Margin="0,0,8,8" Click="PinLatestButton_Click"/>
-                            <Button Content="固定到当前安装版本" Style="{StaticResource SteamSecondaryButtonStyle}"
-                                    Padding="11,7" Margin="0,0,8,8" Click="PinCurrentButton_Click"/>
-                            <Button Content="取消版本固定" Style="{StaticResource SteamSecondaryButtonStyle}"
-                                    Padding="11,7" Margin="0,0,8,8" Click="UnpinButton_Click"/>
-                            <Button Content="删除 Lua" Style="{StaticResource DangerButtonStyle}"
-                                    Padding="11,7" Margin="0,0,8,8" Click="DeleteLuaButton_Click"/>
-                        </WrapPanel>
+
+                        <Border x:Name="PlayProfileResultBar" Background="#172A29" CornerRadius="6"
+                                Padding="11,8" Margin="0,12,0,0" Visibility="Collapsed">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <ui:FontIcon x:Name="PlayProfileResultIcon" Glyph="&#xE73E;" FontSize="13"
+                                             Foreground="{DynamicResource SteamGreenBrush}" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="PlayProfileResultText" Grid.Column="1" Margin="9,0,0,0"
+                                           FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource SteamTextSecondaryBrush}"/>
+                            </Grid>
+                        </Border>
+
+                        <ItemsControl x:Name="PlayProfileItems" Margin="0,12,0,0">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border MinHeight="130" Margin="0,0,0,8" Padding="11"
+                                            BorderThickness="1"
+                                            CornerRadius="7" controls:MotionBehavior.IsEntranceEnabled="True">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="#111A25"/>
+                                                <Setter Property="BorderBrush" Value="#294255"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                                        <Setter Property="Background" Value="#142537"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="*"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               Foreground="{DynamicResource SteamTextPrimaryBrush}"/>
+                                                </StackPanel>
+                                                <ui:FontIcon Grid.Column="1" Glyph="&#xE73E;" FontSize="14"
+                                                             ToolTip="当前方案" Foreground="{DynamicResource SteamAccentBrush}"
+                                                             Visibility="{Binding IsActive, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                                            </Grid>
+                                            <StackPanel Grid.Row="1" Margin="0,12,0,12">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <ui:FontIcon Glyph="&#xE713;" FontSize="11" Width="16"
+                                                                 Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                                                    <TextBlock Text="{Binding DlcSummary}" FontSize="11" Margin="6,0,0,0"
+                                                               Foreground="{DynamicResource SteamTextSecondaryBrush}"/>
+                                                </StackPanel>
+                                                <StackPanel Orientation="Horizontal" Margin="0,7,0,0">
+                                                    <ui:FontIcon Glyph="&#xE756;" FontSize="11" Width="16"
+                                                                 Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                                                    <TextBlock Text="{Binding LaunchSummary}" FontSize="11" Margin="6,0,0,0"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               Foreground="{DynamicResource SteamTextSecondaryBrush}"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                            <WrapPanel Grid.Row="2">
+                                                    <Button Content="应用" ToolTip="只应用方案，不启动游戏" Tag="{Binding}" Padding="10,6" Margin="0,0,6,0"
+                                                            Style="{StaticResource SteamSecondaryButtonStyle}"
+                                                            Click="ApplyPlayProfile_Click"/>
+                                                    <Button Content="应用并启动" Tag="{Binding}" Padding="11,6"
+                                                            Style="{StaticResource SteamPrimaryButtonStyle}"
+                                                            Click="ApplyAndLaunchPlayProfile_Click"/>
+                                                <StackPanel Orientation="Horizontal" Margin="6,0,0,0"
+                                                            Visibility="{Binding CanDelete, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                    <Button Width="30" Height="30" Padding="0" Margin="0,0,4,0" Tag="{Binding}"
+                                                            ToolTip="编辑方案" Style="{StaticResource SteamSecondaryButtonStyle}"
+                                                            Click="EditPlayProfile_Click">
+                                                        <ui:FontIcon Glyph="&#xE70F;" FontSize="12"/>
+                                                    </Button>
+                                                    <Button Width="30" Height="30" Padding="0" Tag="{Binding}"
+                                                            ToolTip="删除方案" Style="{StaticResource DangerButtonStyle}"
+                                                            Click="DeletePlayProfile_Click">
+                                                        <ui:FontIcon Glyph="&#xE74D;" FontSize="12"/>
+                                                    </Button>
+                                                </StackPanel>
+                                            </WrapPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </StackPanel>
+                </Border>
+                    </Grid>
                 </Border>
 
                 <Border x:Name="AchievementSection" Style="{StaticResource SectionCardStyle}" Margin="0,12,0,0">
@@ -921,6 +1101,8 @@
                             </Grid.ColumnDefinitions>
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal">
+                                    <ui:FontIcon Glyph="&#xE735;" FontSize="17" Margin="0,0,9,0"
+                                                 Foreground="#E4BA77"/>
                                     <TextBlock Text="成就" Style="{StaticResource SectionTitleStyle}"/>
                                     <Border x:Name="AchievementModeBadge" Background="#26323E" CornerRadius="4"
                                             Padding="8,3" Margin="10,0,0,0" VerticalAlignment="Center">
@@ -1207,7 +1389,11 @@
 
                 <Border Style="{StaticResource SectionCardStyle}" Margin="0,12,0,18">
                     <StackPanel>
-                        <TextBlock Text="Depot 清单" Style="{StaticResource SectionTitleStyle}"/>
+                        <StackPanel Orientation="Horizontal">
+                            <ui:FontIcon Glyph="&#xE8A5;" FontSize="17" Margin="0,0,9,0"
+                                         Foreground="{DynamicResource SteamAccentBrush}"/>
+                            <TextBlock Text="Depot 清单" Style="{StaticResource SectionTitleStyle}"/>
+                        </StackPanel>
                         <TextBlock Text="仅展示密钥是否存在，不显示密钥原文"
                                    FontSize="11" Margin="0,3,0,12"
                                    Foreground="{DynamicResource SteamTextTertiaryBrush}"/>

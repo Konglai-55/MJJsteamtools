@@ -1,5 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
+using Microsoft.Extensions.DependencyInjection;
+using SteamLuaManager.Services;
 
 namespace SteamLuaManager.Views;
 
@@ -12,6 +14,13 @@ public partial class UtilityToolsView : UserControl
     public UtilityToolsView()
     {
         InitializeComponent();
+    }
+
+    private void OpenManifestCache_Click(object sender, RoutedEventArgs e)
+    {
+        var paths = App.ServiceProvider?.GetRequiredService<ISteamPathService>();
+        if (paths is null) return;
+        new ManifestCacheWindow(paths) { Owner = Window.GetWindow(this) }.ShowDialog();
     }
 
     private void OpenStorageManagerButton_Click(object sender, RoutedEventArgs e)

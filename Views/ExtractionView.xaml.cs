@@ -30,6 +30,10 @@ public partial class ExtractionView : UserControl
                     CopyLogButton.Visibility = Visibility.Collapsed;
             }
             catch { CopyLogButton.Visibility = Visibility.Collapsed; }
+
+            if (DataContext is ExtractionViewModel scanVm && scanVm.AccountGames.Count == 0 && !scanVm.IsLibraryScanning)
+                _ = Dispatcher.BeginInvoke(new Action(() => scanVm.ScanLibraryCommand.Execute(null)),
+                    System.Windows.Threading.DispatcherPriority.Background);
         };
     }
 
@@ -63,6 +67,24 @@ public partial class ExtractionView : UserControl
                 parent.RaiseEvent(newArgs);
             }
         }
+    }
+
+    private void LibrarySearchBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (DataContext is ExtractionViewModel vm && sender is TextBox box)
+            vm.ApplyLibraryFilter(box.Text);
+    }
+
+    private void ExtractIndexedGame_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not ExtractionViewModel vm || sender is not Button { Tag: ExtractionGameItem item })
+            return;
+
+        AppIdBox.Text = item.AppIdText;
+        AppIdBox.Focus();
+        AppIdBox.CaretIndex = AppIdBox.Text.Length;
+        if (!vm.IsRunning && vm.StartExtractionCommand.CanExecute(null))
+            vm.StartExtractionCommand.Execute(null);
     }
 
     private static T? FindVisualParent<T>(DependencyObject child) where T : DependencyObject

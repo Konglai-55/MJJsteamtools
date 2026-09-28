@@ -19,6 +19,7 @@ using iNKORE.UI.WPF.Modern;
 using iNKORE.UI.WPF.Modern.Controls;
 using iNKORE.UI.WPF.Modern.Controls.Helpers;
 using iNKORE.UI.WPF.Modern.Helpers.Styles;
+using SteamLuaManager.Controls;
 using SteamLuaManager.Services;
 using SteamLuaManager.ViewModels;
 
@@ -66,6 +67,7 @@ public partial class MainWindow : Window
     private bool _compactIndicatorTracking;
 
     private FrameworkElement? _accountMenuTrigger;
+    private int _accountMenuTransitionVersion;
 
     public MainWindow(MainViewModel viewModel, SettingsViewModel settingsViewModel, ScriptDownloadViewModel scriptDownloadViewModel, ExtractionViewModel extractionViewModel, TrainerViewModel trainerViewModel, ISettingsService settingsService, ISteamPathService steamPathService, IOpenSteamToolService openSteamToolService, IUpdateService updateService, ISteamDepotService steamDepotService, ISteamApiService steamApiService, ISteamAchievementService steamAchievementService, IDlcManagementService dlcManagementService, ISaveVaultService saveVaultService, ISaveAutoBackupService saveAutoBackupService, IFamilyLibraryService familyLibraryService, ICloudSyncRescueService cloudSyncRescueService, ISteamCloudPreferenceService steamCloudPreferenceService, IGamePlayProfileService gamePlayProfileService)
     {
@@ -680,28 +682,67 @@ public partial class MainWindow : Window
         _isPaneOpen = !_isPaneOpen;
         NavView.IsPaneOpen = _isPaneOpen;
         UpdateCollapsedNavigationVisuals(animate: true);
+        RefreshResponsiveContentLayout();
 
         var targetX = _isPaneOpen ? 0 : -(NavView.OpenPaneLength - NavView.CompactPaneLength);
-        var animation = new DoubleAnimation
+        var shadowX = (_isPaneOpen ? NavView.OpenPaneLength : NavView.CompactPaneLength) - 1;
+        if (AppMotion.Enabled)
         {
-            To = targetX,
-            Duration = TimeSpan.FromMilliseconds(220),
-            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut }
-        };
-        PaneToggleTransform.BeginAnimation(TranslateTransform.XProperty, animation);
+            PaneToggleTransform.BeginAnimation(TranslateTransform.XProperty,
+                AppMotion.To(targetX, AppMotion.Pace.Content, AppMotion.Curve.InOut));
+            NavigationPaneShadowTransform.BeginAnimation(TranslateTransform.XProperty,
+                AppMotion.To(shadowX, AppMotion.Pace.Content, AppMotion.Curve.InOut));
+        }
+        else
+        {
+            PaneToggleTransform.BeginAnimation(TranslateTransform.XProperty, null);
+            NavigationPaneShadowTransform.BeginAnimation(TranslateTransform.XProperty, null);
+            PaneToggleTransform.X = targetX;
+            NavigationPaneShadowTransform.X = shadowX;
+        }
         PaneToggleGlyph.Glyph = _isPaneOpen ? "\uE76B" : "\uE76C";
         PaneToggleButton.ToolTip = _isPaneOpen ? "收起侧边栏" : "展开侧边栏";
-        if (!_isPaneOpen)
+        if (!_isPaneOpen && AppMotion.Enabled)
             TrackCompactIndicatorThroughTransition();
     }
 
-    private static readonly Duration PaneTransitionDuration = new(TimeSpan.FromMilliseconds(220));
+    private void RefreshResponsiveContentLayout()
+    {
+        void Refresh()
+        {
+            NavigationShell.InvalidateMeasure();
+            NavigationShell.InvalidateArrange();
+            NavView.InvalidateMeasure();
+            NavView.InvalidateArrange();
+            NavigationShell.UpdateLayout();
+            NavView.UpdateLayout();
+            ContentTransition.UpdateLayout();
+            StorageManagerHost.UpdateLayout();
+            _homeView.RefreshResponsiveLayout();
+        }
+
+        // Run once after the NavigationView has accepted IsPaneOpen, then once
+        // after its 220 ms visual-state transition has settled.
+        Dispatcher.BeginInvoke(DispatcherPriority.Render, Refresh);
+        var settleTimer = new DispatcherTimer(DispatcherPriority.Background)
+        {
+            Interval = AppMotion.EffectiveDuration(AppMotion.Pace.Content) + TimeSpan.FromMilliseconds(40)
+        };
+        settleTimer.Tick += (_, _) =>
+        {
+            settleTimer.Stop();
+            Refresh();
+        };
+        settleTimer.Start();
+    }
+
+    private static Duration PaneTransitionDuration => new(AppMotion.EffectiveDuration(AppMotion.Pace.Content));
     // The NavigationView template leaves a small left inset in compact mode.
     // Shift the rendered glyph, not its layout slot, so every icon's visible
     // pixels sit on the compact pane centerline without changing row spacing.
     private const double CompactIconCenterOffset = -6d;
 
-    private static CubicEase CreatePaneTransitionEase() => new() { EasingMode = EasingMode.EaseInOut };
+    private static IEasingFunction CreatePaneTransitionEase() => AppMotion.Ease(AppMotion.Curve.InOut);
 
     private void TrackCompactIndicatorThroughTransition()
     {
@@ -732,7 +773,7 @@ public partial class MainWindow : Window
     private void AnimateNavigationItemMargin(NavigationViewItem item, Thickness target, bool animate)
     {
         item.BeginAnimation(FrameworkElement.MarginProperty, null);
-        if (!animate)
+        if (!animate || !AppMotion.Enabled)
         {
             item.Margin = target;
             return;
@@ -769,7 +810,7 @@ public partial class MainWindow : Window
             }
 
             translate.BeginAnimation(TranslateTransform.XProperty, null);
-            if (!animate)
+            if (!animate || !AppMotion.Enabled)
             {
                 translate.X = targetX;
                 continue;
@@ -786,6 +827,7 @@ public partial class MainWindow : Window
 
     private void HideCollapsedSelectionIndicator(bool animate)
     {
+        animate &= AppMotion.Enabled;
         if (!animate || CollapsedSelectionIndicator.Visibility != Visibility.Visible)
         {
             CollapsedSelectionIndicator.BeginAnimation(UIElement.OpacityProperty, null);
@@ -812,6 +854,7 @@ public partial class MainWindow : Window
 
     private void PositionCollapsedSelectionIndicator(bool animate)
     {
+        animate &= AppMotion.Enabled;
         if (NavView.SelectedItem is not NavigationViewItem selected || !selected.IsLoaded)
         {
             HideCollapsedSelectionIndicator(animate: false);
@@ -1468,16 +1511,22 @@ public partial class MainWindow : Window
 
     private async Task DelayedHideSubmenuAsync(Border submenu, FrameworkElement trigger)
     {
+        var requestVersion = _accountMenuTransitionVersion;
         await Task.Delay(200);
+        if (requestVersion != _accountMenuTransitionVersion) return;
         if (submenu.Visibility != Visibility.Visible) return;
         if (submenu.IsMouseOver || trigger.IsMouseOver) return;
-        ((Storyboard)submenu.Resources["CloseSubmenu"]).Begin(submenu);
-        await Task.Delay(80);
+        var closeVersion = ++_accountMenuTransitionVersion;
+        await Task.Delay(MotionBehavior.PlayExit(submenu, toY: -6));
+        if (closeVersion != _accountMenuTransitionVersion) return;
         submenu.Visibility = Visibility.Collapsed;
+        submenu.BeginAnimation(UIElement.OpacityProperty, null);
+        submenu.Opacity = 1;
     }
 
     private void ShowAccountSubmenu(FrameworkElement trigger)
     {
+        _accountMenuTransitionVersion++;
         RefreshTopAccountDisplay();
 
         var displayAccounts = new List<SteamAccount>();
@@ -1503,7 +1552,7 @@ public partial class MainWindow : Window
         AccountScrollViewer.MaxHeight = Math.Max(56, maxHeight - 58);
         AccountScrollViewer.ScrollToTop();
         AccountSubmenu.Visibility = Visibility.Visible;
-        ((Storyboard)AccountSubmenu.Resources["OpenSubmenu"]).Begin(AccountSubmenu);
+        MotionBehavior.PlayEntrance(AccountSubmenu, fromY: -8, pace: AppMotion.Pace.Feedback);
     }
 
     private async void AccountItem_Click(object sender, MouseButtonEventArgs e)
@@ -1511,6 +1560,7 @@ public partial class MainWindow : Window
         if (sender is Border b && b.Tag is SteamAccount acc)
         {
             e.Handled = true;
+            _accountMenuTransitionVersion++;
             AccountSubmenu.Visibility = Visibility.Collapsed;
             await SwitchSteamAccountAsync(acc);
         }

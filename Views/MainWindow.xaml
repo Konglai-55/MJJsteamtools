@@ -38,8 +38,7 @@
                             UseAeroCaptionButtons="False"/>
     </shell:WindowChrome.WindowChrome>
 
-    <Grid Background="{DynamicResource SteamShellBrush}"
-          controls:MotionBehavior.IsEntranceEnabled="True">
+    <Grid Background="{DynamicResource SteamShellBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="64"/>
             <RowDefinition Height="*"/>
@@ -259,6 +258,7 @@
                     <Setter Property="Padding" Value="12,0"/>
                     <Setter Property="FontSize" Value="14"/>
                     <Setter Property="Foreground" Value="{DynamicResource SteamTextPrimaryBrush}"/>
+                    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
                 </Style>
 
                 <Style x:Key="ChildNavItemStyle" TargetType="ui:NavigationViewItem">
@@ -267,6 +267,7 @@
                     <Setter Property="Padding" Value="10,0"/>
                     <Setter Property="FontSize" Value="14"/>
                     <Setter Property="Foreground" Value="{DynamicResource SteamTextSecondaryBrush}"/>
+                    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
                 </Style>
 
             </ui:NavigationView.Resources>
@@ -278,21 +279,23 @@
                 <ui:NavigationViewItem x:Name="HomeItem" Content="游戏库" Tag="Home" ToolTip="游戏库"
                                        Style="{StaticResource PrimaryNavItemStyle}" Margin="6,6,6,0">
                     <ui:NavigationViewItem.Icon>
-                        <ui:FontIcon Glyph="&#xE80F;" FontSize="18"/>
+                        <ui:FontIcon Glyph="&#xEA8A;" Style="{StaticResource SolidNavIconStyle}"/>
                     </ui:NavigationViewItem.Icon>
                 </ui:NavigationViewItem>
 
                 <ui:NavigationViewItem x:Name="ScriptDownloadItem" Content="搜索入库" Tag="ScriptDownload" ToolTip="搜索入库"
                                        Style="{StaticResource ChildNavItemStyle}">
                     <ui:NavigationViewItem.Icon>
-                        <ui:FontIcon Glyph="&#xE990;" FontSize="15"/>
+                        <Path Data="M806.784272,716.288385 L1004.992024,914.432137 A63.99992,63.99992 0 0 1 914.432137,1004.992024 L716.288385,806.784272 A447.99944,447.99944 0 1 1 806.784272,716.288385 Z M448.00072,768.00032 A319.9996,319.9996 0 1 0 448.00072,128.00112 A319.9996,319.9996 0 0 0 448.00072,768.00032 Z"
+                              Style="{StaticResource SolidNavPathIconStyle}"/>
                     </ui:NavigationViewItem.Icon>
                 </ui:NavigationViewItem>
 
                 <ui:NavigationViewItem x:Name="ExtractionItem" Content="Lua 提取" Tag="Extraction" ToolTip="Lua 提取"
                                        Style="{StaticResource ChildNavItemStyle}">
                     <ui:NavigationViewItem.Icon>
-                        <ui:FontIcon Glyph="&#xE8B7;" FontSize="15"/>
+                        <Path Data="M512,64 C264.6,64 64,264.6 64,512 S264.6,960 512,960 S960,759.4 960,512 S759.4,64 512,64 Z M341.8,346.2 L590.4,346.2 C608.7,346.2 623.6,361 623.6,379.4 S608.8,412.6 590.4,412.6 L341.8,412.6 C323.5,412.6 308.6,397.8 308.6,379.4 S323.7,346.2 341.8,346.2 Z M590.5,677.8 L341.8,677.8 C323.5,677.8 308.6,663 308.6,644.6 C308.6,626.3 323.4,611.4 341.8,611.4 L590.4,611.4 C608.7,611.4 623.6,626.2 623.6,644.6 C623.6,662.9 608.8,677.8 590.5,677.8 Z M747,526.3 L657.6,590.4 C653.6,594.4 648.3,596.6 642.7,596.6 S631.8,594.4 627.8,590.4 S621.7,581.1 621.7,575.3 S623.9,564.2 627.8,560.2 L655.5,532 L330,532 C318.5,532 308.8,522.3 308.8,510.8 S318.5,489.6 330,489.6 L654.4,489.6 L626.6,461.4 C622.7,457.5 620.5,452.1 620.5,446.4 S622.6,435.4 626.5,431.5 C630.4,427.4 635.5,425.2 641.1,425.1 C646.9,425 652.4,427.2 656.5,431.4 L747,497 C750.7,500.9 752.7,506.1 752.7,511.7 S750.6,521 747,526.3 Z"
+                              Style="{StaticResource SolidNavPathIconStyle}"/>
                     </ui:NavigationViewItem.Icon>
                 </ui:NavigationViewItem>
 
@@ -302,49 +305,49 @@
                 <ui:NavigationViewItem x:Name="SaveVaultItem" Content="存档保险箱" Tag="SaveVault" ToolTip="存档保险箱"
                                        Style="{StaticResource PrimaryNavItemStyle}" Margin="6,1">
                     <ui:NavigationViewItem.Icon>
-                        <ui:FontIcon Glyph="&#xE8B7;" FontSize="17"/>
+                        <ui:FontIcon Glyph="&#xE8D5;" Style="{StaticResource SolidNavIconStyle}"/>
                     </ui:NavigationViewItem.Icon>
                 </ui:NavigationViewItem>
 
                 <ui:NavigationViewItem x:Name="FamilyLibraryItem" Content="家庭库" Tag="FamilyLibrary" ToolTip="家庭库"
                                        Style="{StaticResource PrimaryNavItemStyle}">
                     <ui:NavigationViewItem.Icon>
-                        <ui:FontIcon Glyph="&#xE716;" FontSize="17"/>
+                        <ui:FontIcon Glyph="&#xEA8C;" Style="{StaticResource SolidNavIconStyle}"/>
                     </ui:NavigationViewItem.Icon>
                 </ui:NavigationViewItem>
 
                 <ui:NavigationViewItem x:Name="TrainerItem" Content="游戏修改器" Tag="Trainer" ToolTip="游戏修改器"
                                        Style="{StaticResource PrimaryNavItemStyle}">
                     <ui:NavigationViewItem.Icon>
-                        <ui:FontIcon Glyph="&#xE7FC;" FontSize="17"/>
+                        <Path Data="M771.8,266.88 L252.2,266.88 C116.61,266.88 6.7,376.79 6.7,512.38 C6.7,647.97 116.61,757.88 252.2,757.88 L771.8,757.88 C907.39,757.88 1017.3,647.97 1017.3,512.38 C1017.3,376.79 907.39,266.88 771.8,266.88 Z M385,543.88 L311.36,543.88 L311.36,617.56 C311.36,633.8 299.44,647.9 283.36,649.83 A32,32 0 0 1 247.36,618.07 L247.36,543.88 L173.67,543.88 C157.43,543.88 143.33,531.96 141.4,515.88 A32,32 0 0 1 173.16,479.88 L247.36,479.88 L247.36,406.2 C247.36,389.96 259.28,375.86 275.36,373.93 A32,32 0 0 1 311.36,405.69 L311.36,479.88 L385.55,479.88 A32,32 0 0 1 417.31,515.88 C415.38,532 401.28,543.88 385,543.88 Z M680,499.67 A53.16,53.16 0 1 1 680,606 A53.16,53.16 0 0 1 680,499.67 Z M790,578.33 A53.16,53.16 0 1 1 790,684.65 A53.16,53.16 0 0 1 790,578.33 Z"
+                              Style="{StaticResource SolidNavPathIconStyle}"/>
                     </ui:NavigationViewItem.Icon>
                 </ui:NavigationViewItem>
 
                 <ui:NavigationViewItem x:Name="UtilityToolsItem" Content="实用工具" Tag="UtilityTools" ToolTip="实用工具"
                                        Style="{StaticResource PrimaryNavItemStyle}" Margin="6,1">
                     <ui:NavigationViewItem.Icon>
-                        <ui:FontIcon Glyph="&#xE90F;" FontSize="17"/>
+                        <Path Data="M1025,343.865677 C1025,533.991409 869.660445,678.531042 679.534713,677.731355 C655.244201,677.631394 631.553456,675.032409 608.762358,670.134323 C587.670597,665.63608 565.679187,672.234503 550.385162,687.528528 L270.094651,967.81804 C239.306678,998.606013 198.722531,1014 158.138383,1014 C117.554235,1014 76.970089,998.606013 46.18196,967.81804 C15.393987,937.030067 0,896.44592 0,855.861773 C0,815.277626 15.393987,774.693479 46.18196,743.905506 L327.172199,462.915267 C342.366264,447.721202 348.963687,425.829754 344.565404,404.837954 C339.767278,382.046857 337.268254,358.356111 337.268254,334.16556 C337.268254,144.839516 491.707926,-9.700156 681.333853,-9.700156 C706.124169,-9.700156 730.31472,-7.101171 753.705583,-2.103124 C759.903162,-0.803632 766.100741,0.695783 772.198359,2.395119 C795.789144,8.892581 803.586098,38.481023 786.292853,55.874229 L772.698163,69.468919 L613.460365,228.606755 C590.469346,251.597774 577.774305,282.385748 577.774305,325.372862 C577.774305,358.260015 590.469346,389.047989 613.460365,412.039008 C636.451384,435.030027 667.239358,447.725068 710.226472,447.725068 C743.113625,447.725068 773.901599,435.030027 796.892618,412.039008 L959.425381,249.606677 C976.718626,232.313432 1006.407029,240.010426 1012.90449,263.701171 C1014.603826,269.798789 1016.10324,275.996368 1017.402733,282.193948 C1022.400781,305.584811 1025,329.775362 1025,343.865677 Z"
+                              Style="{StaticResource SolidNavPathIconStyle}"/>
                     </ui:NavigationViewItem.Icon>
                 </ui:NavigationViewItem>
             </ui:NavigationView.MenuItems>
 
             <ui:NavigationView.FooterMenuItems>
-                <ui:NavigationViewItem x:Name="SettingsItem" Content="设置" Tag="Settings" ToolTip="设置" Padding="12,0" Margin="6,2">
+                <ui:NavigationViewItem x:Name="SettingsItem" Content="设置" Tag="Settings" ToolTip="设置" Padding="12,0" Margin="6,2" FocusVisualStyle="{x:Null}">
                     <ui:NavigationViewItem.Icon>
-                        <ui:FontIcon Glyph="&#xE713;" FontSize="16"/>
+                        <ui:FontIcon Glyph="&#xF8B0;" Style="{StaticResource SolidNavIconStyle}"/>
                     </ui:NavigationViewItem.Icon>
                 </ui:NavigationViewItem>
-                <ui:NavigationViewItem x:Name="AboutItem" Content="关于" Tag="About" ToolTip="关于" Padding="12,0" Margin="6,2">
+                <ui:NavigationViewItem x:Name="AboutItem" Content="关于" Tag="About" ToolTip="关于" Padding="12,0" Margin="6,2" FocusVisualStyle="{x:Null}">
                     <ui:NavigationViewItem.Icon>
-                        <ui:FontIcon Glyph="&#xE9CE;" FontSize="16"/>
+                        <ui:FontIcon Glyph="&#xE897;" FontSize="20" Style="{StaticResource SolidNavIconStyle}"/>
                     </ui:NavigationViewItem.Icon>
                 </ui:NavigationViewItem>
             </ui:NavigationView.FooterMenuItems>
 
             <!-- 主内容区域 -->
-            <Grid Background="{DynamicResource SteamContentBrush}">
-                <Border VerticalAlignment="Stretch" HorizontalAlignment="Left"
-                        Width="1" Background="{DynamicResource SteamDividerBrush}"/>
+            <Grid Background="{DynamicResource SteamContentGlowBrush}">
                 <ui:TransitioningContentControl x:Name="ContentTransition"
                                                  Transition="RightReplace"
                                                  Background="{x:Null}"/>
@@ -363,6 +366,21 @@
             </Grid>
         </ui:NavigationView>
 
+            <!-- 侧边栏使用柔和投影分层，不再绘制硬质竖向描边。 -->
+            <Border x:Name="NavigationPaneShadow"
+                    Width="1"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Stretch"
+                    Panel.ZIndex="8"
+                    Background="#000000"
+                    Opacity="0.14"
+                    IsHitTestVisible="False"
+                    Effect="{StaticResource SteamPaneShadowEffect}">
+                <Border.RenderTransform>
+                    <TranslateTransform x:Name="NavigationPaneShadowTransform" X="213"/>
+                </Border.RenderTransform>
+            </Border>
+
             <!-- 收起状态的底部选中指示条；展开状态沿用 NavigationView 的竖向指示条。 -->
             <Canvas x:Name="CollapsedSelectionLayer"
                     IsHitTestVisible="False"
@@ -376,16 +394,16 @@
 
             <!-- 中部收起按钮：收起后仅保留图标，按钮本身跟随面板边缘过渡。 -->
             <Button x:Name="PaneToggleButton"
-                    Width="34" Height="34"
+                    Width="34" Height="36"
                     Margin="197,0,0,0"
                     Padding="0"
                     HorizontalAlignment="Left"
                     VerticalAlignment="Center"
-                    Panel.ZIndex="20"
-                    Background="{DynamicResource SteamSurfaceBrush}"
-                    BorderBrush="{DynamicResource SteamDividerBrush}"
-                    BorderThickness="1"
-                    Foreground="{DynamicResource SteamTextSecondaryBrush}"
+                    Panel.ZIndex="9"
+                    Background="{DynamicResource SteamSidebarBrush}"
+                    BorderBrush="Transparent"
+                    BorderThickness="0"
+                    Foreground="{DynamicResource SteamTextTertiaryBrush}"
                     Cursor="Hand"
                     Focusable="False"
                     AutomationProperties.Name="切换侧边栏"
@@ -400,13 +418,10 @@
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="7">
+                                CornerRadius="0,7,7,0">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="PaneToggleBackground" Property="Background" Value="#314657"/>
-                            </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="PaneToggleBackground" Property="Background" Value="#243747"/>
                             </Trigger>
@@ -414,7 +429,12 @@
                     </ControlTemplate>
                 </Button.Template>
                 <!-- 展开时箭头指向左侧（收起），收起后切换为向右（展开）。 -->
-                <ui:FontIcon x:Name="PaneToggleGlyph" Glyph="&#xE76B;" FontSize="18"/>
+                <ui:FontIcon x:Name="PaneToggleGlyph" Glyph="&#xE76B;" FontSize="18"
+                             Foreground="{DynamicResource SteamTextTertiaryBrush}">
+                    <ui:FontIcon.RenderTransform>
+                        <TranslateTransform X="3"/>
+                    </ui:FontIcon.RenderTransform>
+                </ui:FontIcon>
             </Button>
         </Grid>
 
@@ -427,37 +447,7 @@
                     Visibility="Collapsed"
                     MouseEnter="AccountSubmenu_MouseEnter"
                     MouseLeave="AccountSubmenu_MouseLeave">
-                <Border.RenderTransform>
-                    <ScaleTransform ScaleX="0.9" ScaleY="0.9"/>
-                </Border.RenderTransform>
-                <Border.RenderTransformOrigin>0.5,0.5</Border.RenderTransformOrigin>
                 <Border.Resources>
-                    <Storyboard x:Key="OpenSubmenu">
-                        <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.12"/>
-                        <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleX" From="0.9" To="1" Duration="0:0:0.12">
-                            <DoubleAnimation.EasingFunction>
-                                <CubicEase EasingMode="EaseOut"/>
-                            </DoubleAnimation.EasingFunction>
-                        </DoubleAnimation>
-                        <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleY" From="0.9" To="1" Duration="0:0:0.12">
-                            <DoubleAnimation.EasingFunction>
-                                <CubicEase EasingMode="EaseOut"/>
-                            </DoubleAnimation.EasingFunction>
-                        </DoubleAnimation>
-                    </Storyboard>
-                    <Storyboard x:Key="CloseSubmenu">
-                        <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0" Duration="0:0:0.08"/>
-                        <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleX" From="1" To="0.9" Duration="0:0:0.08">
-                            <DoubleAnimation.EasingFunction>
-                                <CubicEase EasingMode="EaseIn"/>
-                            </DoubleAnimation.EasingFunction>
-                        </DoubleAnimation>
-                        <DoubleAnimation Storyboard.TargetProperty="RenderTransform.ScaleY" From="1" To="0.9" Duration="0:0:0.08">
-                            <DoubleAnimation.EasingFunction>
-                                <CubicEase EasingMode="EaseIn"/>
-                            </DoubleAnimation.EasingFunction>
-                        </DoubleAnimation>
-                    </Storyboard>
                     <Style x:Key="AccountDeleteButtonStyle" TargetType="Button">
                         <Setter Property="Width" Value="30"/>
                         <Setter Property="Height" Value="30"/>

@@ -565,7 +565,9 @@ public class SteamApiService : ISteamApiService
 		cts.CancelAfter(TimeSpan.FromSeconds(5));
 		try
 		{
-			var url = $"https://store.steampowered.com/api/appdetails?appids={appId}&l={lang}";
+			// Supplying an explicit country avoids the CDN's generic endpoint rate
+			// limit for mainland-China clients and returns localized names reliably.
+			var url = $"https://store.steampowered.com/api/appdetails?appids={appId}&l={lang}&cc=cn";
 			await using var stream = await _httpClientProvider.SendWithProxyRetryAsync(
 				"steam-api-json",
 				TimeSpan.FromSeconds(8),
@@ -783,7 +785,7 @@ public class SteamApiService : ISteamApiService
 		await _communityGate.WaitAsync(cancellationToken);
 		try
 		{
-			var url = $"https://steamcommunity.com/app/{appId}?l=english";
+			var url = $"https://steamcommunity.com/app/{appId}?l=schinese&cc=cn";
 			var html = await _httpClientProvider.SendWithProxyRetryAsync(
 				"steam-api-json",
 				TimeSpan.FromSeconds(8),

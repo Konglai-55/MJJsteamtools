@@ -12,6 +12,12 @@
         SnapsToDevicePixels="True">
 
     <UserControl.Resources>
+        <DropShadowEffect x:Key="LibraryCardShadowEffect"
+                          Color="#03080E" Direction="270"
+                          ShadowDepth="7" BlurRadius="22" Opacity="0.48"/>
+        <BlurEffect x:Key="LibraryCoverBlurEffect"
+                    Radius="16" KernelType="Gaussian"
+                    RenderingBias="Performance"/>
         <Style x:Key="SelectionCheckBoxStyle" TargetType="CheckBox">
             <Setter Property="Width" Value="16"/>
             <Setter Property="Height" Value="16"/>
@@ -39,7 +45,7 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
                                 <Setter TargetName="Box" Property="Background" Value="{DynamicResource SystemAccentColorBrush}"/>
-                                <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource SystemAccentColorBrush}"/>
+                                <Setter TargetName="Box" Property="BorderThickness" Value="0"/>
                                 <Setter TargetName="Mark" Property="Visibility" Value="Visible"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
@@ -256,7 +262,6 @@
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
                                 <Setter TargetName="BentoBorder" Property="Background" Value="#21394B"/>
-                                <Setter TargetName="BentoBorder" Property="BorderBrush" Value="{DynamicResource SteamAccentBrush}"/>
                                 <Setter Property="Foreground" Value="White"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
@@ -503,12 +508,13 @@
                                     Style="{StaticResource SteamHoverLiftStyle}"
                                     Margin="0,0,14,14"
                                     Width="{Binding GameCardWidth, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                    CornerRadius="8"
-                                    BorderBrush="{DynamicResource SteamDividerBrush}"
-                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    BorderBrush="Transparent"
+                                    BorderThickness="0"
+                                    Effect="{StaticResource LibraryCardShadowEffect}"
                                     Tag="{Binding}">
                                 <controls:ClippingBorder.Background>
-                                    <SolidColorBrush Color="{DynamicResource CardBackgroundFillColorDefault}"/>
+                                    <SolidColorBrush Color="#223448"/>
                                 </controls:ClippingBorder.Background>
                                 <Grid>
                                     <Grid.RowDefinitions>
@@ -516,10 +522,21 @@
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
 
-                                    <!-- 16:9 横向封面 -->
-                                    <Grid Grid.Row="0" Background="#182536"
+                                    <!-- Raised information surface contrasts with the page; cover remains clean. -->
+                                    <Border x:Name="InfoSurface" Grid.Row="1" Grid.RowSpan="4" Panel.ZIndex="-1">
+                                        <Border.Background>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                <GradientStop Color="#25394D" Offset="0"/>
+                                                <GradientStop Color="#1E2E3F" Offset="1"/>
+                                            </LinearGradientBrush>
+                                        </Border.Background>
+                                    </Border>
+
+                                    <!-- Only image treatment touches the cover; all controls stay below it. -->
+                                    <Grid Grid.Row="0" Background="#182536" ClipToBounds="True"
                                           Height="{Binding GameCardCoverHeight, RelativeSource={RelativeSource AncestorType=UserControl}}">
                                         <Image Source="{Binding CoverImagePath, Converter={StaticResource FilePathToImageConverter}}"
                                                Stretch="UniformToFill"
@@ -527,66 +544,84 @@
                                                VerticalAlignment="Stretch"
                                                RenderOptions.BitmapScalingMode="HighQuality"
                                                x:Name="CoverImage"/>
-                                        <Rectangle x:Name="DisabledCoverOverlay"
-                                                   Fill="#60000000" Opacity="0"
-                                                   IsHitTestVisible="False"/>
-                                        <CheckBox Style="{StaticResource SelectionCheckBoxStyle}" IsChecked="{Binding IsSelected}"
-                                                  VerticalAlignment="Top" HorizontalAlignment="Left"
-                                                  Margin="8"
-                                                  Visibility="{Binding DataContext.IsSelectionMode, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVisibilityConverter}}"
-                                                  Checked="CheckBox_Checked" Unchecked="CheckBox_Unchecked"/>
-                                        <Button Style="{StaticResource FavoriteIconButtonStyle}"
-                                                HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8"
-                                                Command="{Binding DataContext.ToggleFavoriteCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                CommandParameter="{Binding}"
-                                                ToolTip="收藏或取消收藏">
-                                            <ui:FontIcon Style="{StaticResource FavoriteStarIconStyle}" FontSize="17"/>
-                                        </Button>
+                                        <!-- The duplicate shares the cover crop and fades in as Gaussian blur near the seam. -->
+                                        <Image Source="{Binding CoverImagePath, Converter={StaticResource FilePathToImageConverter}}"
+                                               Stretch="UniformToFill"
+                                               HorizontalAlignment="Stretch"
+                                               VerticalAlignment="Stretch"
+                                               RenderOptions.BitmapScalingMode="HighQuality"
+                                               Effect="{StaticResource LibraryCoverBlurEffect}"
+                                               IsHitTestVisible="False">
+                                            <Image.OpacityMask>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                    <GradientStop Color="#00000000" Offset="0.52"/>
+                                                    <GradientStop Color="#66000000" Offset="0.76"/>
+                                                    <GradientStop Color="#FF000000" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Image.OpacityMask>
+                                        </Image>
+                                        <Rectangle Height="66" VerticalAlignment="Bottom"
+                                                   IsHitTestVisible="False">
+                                            <Rectangle.Fill>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                    <GradientStop Color="#0025394D" Offset="0"/>
+                                                    <GradientStop Color="#4825394D" Offset="0.48"/>
+                                                    <GradientStop Color="#FF25394D" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Rectangle.Fill>
+                                        </Rectangle>
                                     </Grid>
 
-                                    <Grid Grid.Row="1" Margin="14,12,14,0">
+                                    <Grid Grid.Row="1" Margin="14,10,14,0">
                                         <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock x:Name="GameNameText" Grid.Column="0" Text="{Binding GameName}"
-                                                   FontWeight="SemiBold" FontSize="15"
+                                        <CheckBox Grid.Column="0" Style="{StaticResource SelectionCheckBoxStyle}"
+                                                  IsChecked="{Binding IsSelected}"
+                                                  VerticalAlignment="Center" Margin="0,0,8,0"
+                                                  Visibility="{Binding DataContext.IsSelectionMode, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                  Checked="CheckBox_Checked" Unchecked="CheckBox_Unchecked"/>
+                                        <TextBlock x:Name="GameNameText" Grid.Column="1" Text="{Binding GameName}"
+                                                   FontWeight="SemiBold" FontSize="16"
                                                    VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                    ToolTip="{Binding GameName}"
                                                    Foreground="{DynamicResource SteamTextPrimaryBrush}"/>
-                                        <Border Grid.Column="1" Margin="8,0,4,0" Padding="7,2"
-                                                CornerRadius="8" Background="#162537"
-                                                VerticalAlignment="Center"
-                                                ToolTip="已安装显示本机实际占用；未安装显示 Steam 商店建议存储空间">
-                                            <TextBlock Text="{Binding InstallSizeText}" FontSize="10"
-                                                       Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
-                                        </Border>
-                                        <ToggleButton Grid.Column="2"
-                                                      Tag="{Binding}"
-                                                      Style="{StaticResource CardImportToggleStyle}"
-                                                      IsChecked="{Binding IsDisabled, Converter={StaticResource BoolInvertConverter}, Mode=OneWay}"
-                                                      Margin="12,-3,-4,0"
-                                                      VerticalAlignment="Center"
-                                                      ToolTip="开启：已入库；关闭：禁止入库"
-                                                      Click="CardImportToggle_Click"/>
+                                        <Button Grid.Column="2" Style="{StaticResource FavoriteIconButtonStyle}"
+                                                Width="30" Height="30" Margin="8,0,0,0"
+                                                Background="#31485D" BorderThickness="0"
+                                                Command="{Binding DataContext.ToggleFavoriteCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}"
+                                                AutomationProperties.Name="收藏或取消收藏"
+                                                ToolTip="收藏或取消收藏">
+                                            <ui:FontIcon Style="{StaticResource FavoriteStarIconStyle}" FontSize="16"/>
+                                        </Button>
                                     </Grid>
 
-                                    <Grid Grid.Row="2" Margin="14,3,14,0">
+                                    <Grid Grid.Row="2" Margin="14,8,14,0">
                                         <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" FontSize="12"
-                                                   Foreground="{DynamicResource SteamTextSecondaryBrush}"
-                                                   x:Name="AppIdText">
-                                            <Run Text="AppID: "/><Run Text="{Binding AppId, Mode=OneWay}"/>
-                                        </TextBlock>
-                                        <TextBlock Grid.Column="1" Text="● 已固定" FontSize="10"
-                                                   Foreground="{DynamicResource SteamAccentBrush}"
-                                                   VerticalAlignment="Center">
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
+                                        <Border x:Name="ImportStatusBadge" Grid.Column="0"
+                                                Padding="7,4" CornerRadius="4"
+                                                Background="#234B63">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Ellipse x:Name="ImportStatusDot" Width="6" Height="6"
+                                                         Fill="{DynamicResource SteamAccentBrush}"
+                                                         VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                                <TextBlock x:Name="ImportStatusText" Text="已入库"
+                                                           FontSize="11" FontWeight="SemiBold"
+                                                           Foreground="#DCEFFF"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Grid.Column="1" Margin="6,0,0,0" Padding="7,4"
+                                                CornerRadius="4" Background="#2C4357">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
                                                     <Setter Property="Visibility" Value="Collapsed"/>
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding IsManifestPinned}" Value="True">
@@ -594,12 +629,40 @@
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
+                                            </Border.Style>
+                                            <TextBlock Text="已固定" FontSize="10" Foreground="#BED7E8"/>
+                                        </Border>
+                                        <ToggleButton Grid.Column="3"
+                                                      Tag="{Binding}"
+                                                      Style="{StaticResource CardImportToggleStyle}"
+                                                      IsChecked="{Binding IsDisabled, Converter={StaticResource BoolInvertConverter}, Mode=OneWay}"
+                                                      Margin="8,-3,-2,0"
+                                                      VerticalAlignment="Center"
+                                                      ToolTip="开启或暂停此游戏入库"
+                                                      AutomationProperties.Name="切换游戏入库状态"
+                                                      Click="CardImportToggle_Click"/>
                                     </Grid>
 
-                                    <!-- 与参考图一致的主操作 + 独立齿轮菜单 -->
-                                    <Grid Grid.Row="3" Margin="14,14,14,14">
+                                    <Grid Grid.Row="3" Margin="14,8,14,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" FontSize="11"
+                                                   Foreground="#9FB6C9" VerticalAlignment="Center"
+                                                   x:Name="AppIdText">
+                                            <Run Text="AppID: "/><Run Text="{Binding AppId, Mode=OneWay}"/>
+                                        </TextBlock>
+                                        <Border Grid.Column="1" Padding="7,3" CornerRadius="4"
+                                                Background="#172A3B" BorderThickness="0"
+                                                ToolTip="已安装显示本机实际占用；未安装显示 Steam 商店建议存储空间">
+                                            <TextBlock Text="{Binding InstallSizeText}" FontSize="11"
+                                                       Foreground="#C1DCEC"/>
+                                        </Border>
+                                    </Grid>
+
+                                    <!-- Primary action stays separate from the details menu. -->
+                                    <Grid Grid.Row="4" Margin="14,12,14,14">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="48"/>
@@ -607,7 +670,7 @@
                                         <Button Grid.Column="0" Tag="{Binding}" Click="OpenLibraryButton_Click"
                                                 Style="{StaticResource SteamCardActionButtonStyle}" Margin="0,0,2,0"
                                                 ToolTip="在 Steam 库详情页中打开">
-                                            <TextBlock Text="从库里打开" FontSize="14" Foreground="{DynamicResource SteamTextPrimaryBrush}"/>
+                                            <TextBlock Text="打开 Steam 库" FontSize="13" Foreground="{DynamicResource SteamTextPrimaryBrush}"/>
                                         </Button>
                                         <Button Grid.Column="1" Tag="{Binding}" Click="MoreButton_Click"
                                                 Style="{StaticResource SteamCardGearButtonStyle}"
@@ -626,19 +689,13 @@
                                             <Storyboard>
                                                 <DoubleAnimation Storyboard.TargetName="CoverImage"
                                                                  Storyboard.TargetProperty="Opacity"
-                                                                 To="0.38" Duration="0:0:0.24"/>
-                                                <DoubleAnimation Storyboard.TargetName="DisabledCoverOverlay"
-                                                                 Storyboard.TargetProperty="Opacity"
-                                                                 To="1" Duration="0:0:0.24"/>
+                                                                 To="0.62" Duration="0:0:0.24"/>
                                                 <DoubleAnimation Storyboard.TargetName="GameNameText"
                                                                  Storyboard.TargetProperty="Opacity"
                                                                  To="0.62" Duration="0:0:0.24"/>
                                                 <DoubleAnimation Storyboard.TargetName="AppIdText"
                                                                  Storyboard.TargetProperty="Opacity"
                                                                  To="0.62" Duration="0:0:0.24"/>
-                                                <ColorAnimation Storyboard.TargetName="CardRoot"
-                                                                Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
-                                                                To="#28313A" Duration="0:0:0.24"/>
                                             </Storyboard>
                                         </BeginStoryboard>
                                     </DataTrigger.EnterActions>
@@ -648,21 +705,21 @@
                                                 <DoubleAnimation Storyboard.TargetName="CoverImage"
                                                                  Storyboard.TargetProperty="Opacity"
                                                                  To="1" Duration="0:0:0.24"/>
-                                                <DoubleAnimation Storyboard.TargetName="DisabledCoverOverlay"
-                                                                 Storyboard.TargetProperty="Opacity"
-                                                                 To="0" Duration="0:0:0.24"/>
                                                 <DoubleAnimation Storyboard.TargetName="GameNameText"
                                                                  Storyboard.TargetProperty="Opacity"
                                                                  To="1" Duration="0:0:0.24"/>
                                                 <DoubleAnimation Storyboard.TargetName="AppIdText"
                                                                  Storyboard.TargetProperty="Opacity"
                                                                  To="1" Duration="0:0:0.24"/>
-                                                <ColorAnimation Storyboard.TargetName="CardRoot"
-                                                                Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
-                                                                To="#1D2936" Duration="0:0:0.24"/>
                                             </Storyboard>
                                         </BeginStoryboard>
                                     </DataTrigger.ExitActions>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsDisabled}" Value="True">
+                                    <Setter TargetName="ImportStatusText" Property="TextBlock.Text" Value="已暂停"/>
+                                    <Setter TargetName="ImportStatusText" Property="TextBlock.Foreground" Value="#D3DCE4"/>
+                                    <Setter TargetName="ImportStatusDot" Property="Shape.Fill" Value="#8E9EAC"/>
+                                    <Setter TargetName="ImportStatusBadge" Property="Border.Background" Value="#344351"/>
                                 </DataTrigger>
                             </DataTemplate.Triggers>
                         </DataTemplate>
@@ -985,6 +1042,34 @@
                         Visibility="Collapsed"
                         HorizontalContentAlignment="Stretch"
                         VerticalContentAlignment="Stretch"/>
+
+        <!-- Shared-element cover transition: the card cover travels into the detail hero. -->
+        <Canvas x:Name="DetailTransitionLayer" Panel.ZIndex="160"
+                IsHitTestVisible="False" Visibility="Collapsed" ClipToBounds="False">
+            <Border x:Name="DetailTransitionFrame" CornerRadius="10"
+                    Background="{DynamicResource SteamSurfaceBrush}"
+                    ClipToBounds="True" Opacity="1">
+                <Border.RenderTransform>
+                    <TransformGroup>
+                        <ScaleTransform ScaleX="1" ScaleY="1"/>
+                        <RotateTransform Angle="0"/>
+                    </TransformGroup>
+                </Border.RenderTransform>
+                <Grid>
+                    <Image x:Name="DetailTransitionCover" Stretch="UniformToFill"
+                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                    <Border x:Name="DetailTransitionGlow" Opacity="0">
+                        <Border.Background>
+                            <RadialGradientBrush Center="0.5,0.35" RadiusX="0.78" RadiusY="0.72">
+                                <GradientStop Color="#B84FA8FF" Offset="0"/>
+                                <GradientStop Color="#003C8DFF" Offset="0.72"/>
+                                <GradientStop Color="#00000000" Offset="1"/>
+                            </RadialGradientBrush>
+                        </Border.Background>
+                    </Border>
+                </Grid>
+            </Border>
+        </Canvas>
 
         <!-- 慢速获取浮层 -->
         <Border Visibility="{Binding IsRefreshSlow, Converter={StaticResource BoolToVisibilityConverter}}"

@@ -22,6 +22,152 @@
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
             </StackPanel>
 
+            <!-- 本地所有 Steam 账号与游戏索引 -->
+            <Border Background="{DynamicResource SteamSurfaceBrush}" CornerRadius="10"
+                    Padding="16" Margin="0,0,0,14"
+                    Effect="{StaticResource SteamSectionShadowEffect}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <ui:FontIcon Glyph="&#xE77B;" FontSize="16" Foreground="{DynamicResource SteamAccentBrush}" Margin="0,0,8,0"/>
+                                <TextBlock Text="账号游戏索引" FontSize="16" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource SteamTextPrimaryBrush}"/>
+                            </StackPanel>
+                            <TextBlock Text="扫描 Steam userdata 与本地库，按账号快速定位并提取 Lua"
+                                       FontSize="12" Margin="24,3,0,0"
+                                       Foreground="{DynamicResource SteamTextSecondaryBrush}"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" HorizontalAlignment="Right"
+                                Command="{Binding ScanLibraryCommand}"
+                                Style="{StaticResource SteamSecondaryButtonStyle}" Padding="12,7">
+                            <StackPanel Orientation="Horizontal">
+                                <ui:FontIcon Glyph="&#xE72C;" FontSize="13" Margin="0,0,6,0"/>
+                                <TextBlock Text="扫描账号与游戏"/>
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+
+                    <UniformGrid Grid.Row="1" Columns="3" Margin="0,14,0,12">
+                        <Border Background="{DynamicResource SteamCardBrush}" CornerRadius="7" Padding="12" Margin="0,0,8,0">
+                            <StackPanel>
+                                <TextBlock Text="账号" FontSize="11" Foreground="{DynamicResource SteamTextSecondaryBrush}"/>
+                                <TextBlock Text="{Binding AccountCount}" FontSize="22" FontWeight="SemiBold" Margin="0,2,0,0"
+                                           Foreground="{DynamicResource SteamTextPrimaryBrush}"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="{DynamicResource SteamCardBrush}" CornerRadius="7" Padding="12" Margin="4,0,4,0">
+                            <StackPanel>
+                                <TextBlock Text="不同游戏" FontSize="11" Foreground="{DynamicResource SteamTextSecondaryBrush}"/>
+                                <TextBlock Text="{Binding GameCount}" FontSize="22" FontWeight="SemiBold" Margin="0,2,0,0"
+                                           Foreground="{DynamicResource SteamTextPrimaryBrush}"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="{DynamicResource SteamCardBrush}" CornerRadius="7" Padding="12" Margin="8,0,0,0">
+                            <StackPanel>
+                                <TextBlock Text="当前结果" FontSize="11" Foreground="{DynamicResource SteamTextSecondaryBrush}"/>
+                                <TextBlock Text="{Binding ResultCount}" FontSize="22" FontWeight="SemiBold" Margin="0,2,0,0"
+                                           Foreground="{DynamicResource SteamAccentBrush}"/>
+                            </StackPanel>
+                        </Border>
+                    </UniformGrid>
+
+                    <Grid Grid.Row="2" Margin="0,0,0,8">
+                        <TextBox x:Name="LibrarySearchBox" Height="34" Padding="10,5"
+                                 TextChanged="LibrarySearchBox_TextChanged"
+                                 ToolTip="搜索游戏名、AppID 或账号">
+                            <TextBox.Resources>
+                                <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+                                    <Setter Property="Background" Value="{DynamicResource SteamCardBrush}"/>
+                                    <Setter Property="BorderThickness" Value="0"/>
+                                </Style>
+                            </TextBox.Resources>
+                        </TextBox>
+                        <TextBlock Text="搜索账号、游戏名或 AppID" IsHitTestVisible="False"
+                                   Margin="12,0,0,0" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource SteamTextTertiaryBrush}">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Text.Length, ElementName=LibrarySearchBox}" Value="0">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+
+                    <Border Grid.Row="3" Background="{DynamicResource SteamCardBrush}" CornerRadius="8" Padding="4">
+                        <Grid>
+                            <TextBlock Text="{Binding LibraryScanStatus}" Margin="10,10" FontSize="12"
+                                       Foreground="{DynamicResource SteamTextSecondaryBrush}"
+                                       Visibility="{Binding AccountGames.Count, Converter={StaticResource ZeroToVisibilityConverter}}"/>
+                            <ScrollViewer MaxHeight="286" VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding AccountGames}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Padding="10,9" Margin="0,1" Background="Transparent">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="74"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <Border Width="64" Height="38" CornerRadius="6" Background="#1F4864" VerticalAlignment="Center"
+                                                            ClipToBounds="True">
+                                                        <Grid>
+                                                            <Image Source="{Binding CoverImagePath, Converter={StaticResource FilePathToImageConverter}}"
+                                                                   Stretch="UniformToFill" Opacity="0.92"
+                                                                   RenderOptions.BitmapScalingMode="HighQuality"/>
+                                                            <Border Background="#660E1A28"/>
+                                                            <TextBlock Text="{Binding StateGlyph}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                       Foreground="{DynamicResource SteamAccentBrush}" FontSize="12" FontWeight="Bold"/>
+                                                        </Grid>
+                                                    </Border>
+                                                    <StackPanel Grid.Column="1" Margin="10,0,12,0" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding GameName}" FontSize="13" FontWeight="SemiBold"
+                                                                   Foreground="{DynamicResource SteamTextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Text="{Binding AppIdText, StringFormat=AppID: {0}}" FontSize="11"
+                                                                   Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="0,0,14,0">
+                                                        <TextBlock Text="{Binding AccountName}" FontSize="12" HorizontalAlignment="Right"
+                                                                   Foreground="{DynamicResource SteamTextSecondaryBrush}"/>
+                                                        <TextBlock Text="{Binding StateText}" FontSize="11" HorizontalAlignment="Right"
+                                                                   Foreground="{DynamicResource SteamAccentBrush}"/>
+                                                    </StackPanel>
+                                                    <Button Grid.Column="3" Tag="{Binding}" Click="ExtractIndexedGame_Click"
+                                                            Style="{StaticResource SteamPrimaryButtonStyle}" Padding="10,5"
+                                                            ToolTip="使用此账号的本地配置提取 Lua">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <ui:FontIcon Glyph="&#xE898;" FontSize="13" Margin="0,0,5,0"/>
+                                                            <TextBlock Text="提取 Lua"/>
+                                                        </StackPanel>
+                                                    </Button>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Border>
+
             <!-- AppID 输入 + 选项 -->
             <Border Style="{StaticResource SteamToolbarBorderStyle}" Margin="0,0,0,8">
                 <StackPanel>

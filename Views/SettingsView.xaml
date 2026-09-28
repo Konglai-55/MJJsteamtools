@@ -56,8 +56,7 @@
                                         <Setter TargetName="Border" Property="Background" Value="{DynamicResource SteamSurfaceRaisedBrush}"/>
                                     </Trigger>
                                     <Trigger Property="IsKeyboardFocused" Value="True">
-                                        <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource SteamAccentBrush}"/>
-                                        <Setter TargetName="Border" Property="BorderThickness" Value="1"/>
+                                        <Setter TargetName="Border" Property="Background" Value="{DynamicResource SteamHoverBrush}"/>
                                     </Trigger>
                                 </ControlTemplate.Triggers>
                             </ControlTemplate>

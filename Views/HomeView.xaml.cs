@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Windows.Input;
 using System.Windows.Media;
 using iNKORE.UI.WPF.Modern.Controls;
+using SteamLuaManager.Controls;
 using SteamLuaManager.Models;
 using SteamLuaManager.Services;
 using SteamLuaManager.ViewModels;
@@ -15,7 +16,7 @@ namespace SteamLuaManager.Views;
 public partial class HomeView : UserControl
 {
     private const double GameCardGap = 14;
-    private const double MinimumGameCardWidth = 248;
+    private const double MinimumGameCardWidth = 244;
 
     public static readonly DependencyProperty GameCardWidthProperty = DependencyProperty.Register(
         nameof(GameCardWidth), typeof(double), typeof(HomeView), new PropertyMetadata(286d));
@@ -43,7 +44,12 @@ public partial class HomeView : UserControl
     private Border? _cardSubmenuTrigger;
     private Button? _activeMenuButton;
     private readonly HashSet<int> _pendingToggleAppIds = new();
+    private int _detailTransitionVersion;
     private readonly GameDetailView _gameDetailView;
+    private FrameworkElement? _transitionCardRoot;
+    private Image? _transitionSourceImage;
+    private Rect _transitionSourceRect;
+    private bool _sharedDetailTransitionActive;
     public event Action<int>? OpenSaveVaultRequested;
 
     public HomeView(
@@ -129,7 +135,14 @@ public partial class HomeView : UserControl
     private void ViewModeContainer_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
         if (e.NewValue is not true || sender is not FrameworkElement fe) return;
-        fe.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(200)));
+        if (AppMotion.Enabled)
+            fe.BeginAnimation(OpacityProperty,
+                AppMotion.To(1, AppMotion.Pace.Content, from: 0));
+        else
+        {
+            fe.BeginAnimation(OpacityProperty, null);
+            fe.Opacity = 1;
+        }
         QueueAppendGames(sender);
     }
 
@@ -155,9 +168,14 @@ public partial class HomeView : UserControl
         if (!CardScrollViewer.IsVisible)
             return;
 
-        var viewportWidth = CardScrollViewer.ViewportWidth;
-        if (viewportWidth <= 0 || double.IsNaN(viewportWidth) || double.IsInfinity(viewportWidth))
-            viewportWidth = CardScrollViewer.ActualWidth;
+        // ScrollViewer.ViewportWidth can retain the pre-toggle extent because the
+        // ItemsControl has an explicit Width. Reading it here creates a loop:
+        // the old item width keeps the old viewport width, even though the pane
+        // and the ScrollViewer itself have already grown. Use the arranged
+        // control width instead, less the visible vertical scrollbar.
+        var viewportWidth = CardScrollViewer.ActualWidth;
+        if (CardScrollViewer.ComputedVerticalScrollBarVisibility == Visibility.Visible)
+            viewportWidth -= SystemParameters.VerticalScrollBarWidth;
         if (viewportWidth <= 0)
             return;
 
@@ -166,11 +184,13 @@ public partial class HomeView : UserControl
         // final card never wraps into a new row at the minimum window width.
         var layoutWidth = Math.Max(1, Math.Floor(viewportWidth) - 8);
         var columns = Math.Max(1, (int)Math.Floor(layoutWidth / (MinimumGameCardWidth + GameCardGap)));
-        var cardWidth = Math.Floor(layoutWidth / columns - GameCardGap);
+        // Keep a per-card rounding allowance as WPF can round each item
+        // container outward at non-integer display scale factors.
+        var cardWidth = Math.Floor(layoutWidth / columns - GameCardGap) - 2;
         if (cardWidth < MinimumGameCardWidth && columns > 1)
         {
             columns--;
-            cardWidth = Math.Floor(layoutWidth / columns - GameCardGap);
+            cardWidth = Math.Floor(layoutWidth / columns - GameCardGap) - 2;
         }
 
         // Both the card and its 16:9 cover respond to the pane's current width.
@@ -178,6 +198,26 @@ public partial class HomeView : UserControl
         CardItemsControl.Width = layoutWidth;
         GameCardWidth = Math.Max(1, cardWidth);
         GameCardCoverHeight = Math.Round(GameCardWidth * 9 / 16);
+    }
+
+    /// <summary>
+    /// Re-measures the card viewport after the shell pane changes width. The
+    /// NavigationView template can animate its content bounds without raising
+    /// a SizeChanged event, so an explicit pass prevents stale column counts
+    /// until the user manually resizes the window.
+    /// </summary>
+    public void RefreshResponsiveLayout()
+    {
+        if (!IsLoaded || !CardScrollViewer.IsVisible)
+            return;
+
+        InvalidateMeasure();
+        InvalidateArrange();
+        UpdateLayout();
+        CardScrollViewer.InvalidateMeasure();
+        CardScrollViewer.InvalidateArrange();
+        CardScrollViewer.UpdateLayout();
+        UpdateGameCardLayout();
     }
 
     private void QueueAppendGames(object sender)
@@ -240,23 +280,7 @@ public partial class HomeView : UserControl
             _activeMenuGame = game;
             _activeMenuViewModel = vm;
             _activeMenuButton = btn;
-            _ = HideCardMenuAsync();
-            GameDetailHost.Visibility = Visibility.Visible;
-            GameDetailHost.Opacity = 0;
-            GameDetailHost.RenderTransform = new TranslateTransform(26, 0);
-            _gameDetailView.ShowGame(game, vm);
-
-            GameDetailHost.BeginAnimation(OpacityProperty,
-                new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180))
-                {
-                    EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
-                });
-            ((TranslateTransform)GameDetailHost.RenderTransform).BeginAnimation(
-                TranslateTransform.XProperty,
-                new DoubleAnimation(26, 0, TimeSpan.FromMilliseconds(180))
-                {
-                    EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
-                });
+            _ = OpenGameDetailWithTransitionAsync(game, vm, btn);
         }
     }
 
@@ -264,27 +288,204 @@ public partial class HomeView : UserControl
     {
         if (GameDetailHost.Visibility != Visibility.Visible) return;
 
-        var opacity = new DoubleAnimation(GameDetailHost.Opacity, 0, TimeSpan.FromMilliseconds(120));
-        GameDetailHost.BeginAnimation(OpacityProperty, opacity);
-        if (GameDetailHost.RenderTransform is not TranslateTransform transform)
+        var version = ++_detailTransitionVersion;
+        if (!_sharedDetailTransitionActive || _transitionSourceImage is null || !IsValidRect(_transitionSourceRect))
         {
-            transform = new TranslateTransform();
-            GameDetailHost.RenderTransform = transform;
+            await CloseGameDetailImmediatelyAsync(version);
+            return;
         }
-        transform.BeginAnimation(TranslateTransform.XProperty,
-            new DoubleAnimation(0, 20, TimeSpan.FromMilliseconds(120)));
-        await Task.Delay(120);
+
+        var targetRect = GetElementRect(_gameDetailView.SharedCoverImage, DetailTransitionLayer);
+        if (!IsValidRect(targetRect))
+        {
+            await CloseGameDetailImmediatelyAsync(version);
+            return;
+        }
+
+        _gameDetailView.PrepareForSharedTransitionExit();
+        DetailTransitionCover.Source = _gameDetailView.SharedCoverImage.Source ?? _transitionSourceImage.Source;
+        SetTransitionFrame(targetRect);
+        DetailTransitionLayer.Visibility = Visibility.Visible;
+        await Task.Delay(AppMotion.Enabled ? 42 : 0);
+        await AnimateTransitionFrameAsync(targetRect, _transitionSourceRect, opening: false);
+        if (version != _detailTransitionVersion) return;
+
+        _gameDetailView.CloseGame();
+        GameDetailHost.Visibility = Visibility.Collapsed;
+        DetailTransitionLayer.Visibility = Visibility.Collapsed;
+        _sharedDetailTransitionActive = false;
+    }
+
+    private async Task OpenGameDetailWithTransitionAsync(GameInfo game, MainViewModel vm, Button sourceButton)
+    {
+        await HideCardMenuAsync();
+        var card = FindCardRoot(sourceButton);
+        var sourceImage = card is not null
+            ? FindNamedImage(card, "CoverImage")
+            : null;
+        var sourceRect = sourceImage is null ? Rect.Empty : GetElementRect(sourceImage, DetailTransitionLayer);
+        if (sourceImage is null || sourceImage.Source is null || !IsValidRect(sourceRect))
+        {
+            ShowGameDetailImmediately(game, vm);
+            return;
+        }
+
+        var version = ++_detailTransitionVersion;
+        _transitionCardRoot = card;
+        _transitionSourceImage = sourceImage;
+        _transitionSourceRect = sourceRect;
+        _sharedDetailTransitionActive = true;
+
+        DetailTransitionCover.Source = sourceImage.Source;
+        SetTransitionFrame(sourceRect);
+        DetailTransitionLayer.Visibility = Visibility.Visible;
+        _gameDetailView.PrepareForSharedTransition();
+        GameDetailHost.Visibility = Visibility.Visible;
+        GameDetailHost.BeginAnimation(OpacityProperty, null);
+        GameDetailHost.Opacity = 1;
+        _gameDetailView.ShowGame(game, vm);
+
+        await Dispatcher.InvokeAsync(() => UpdateLayout(), System.Windows.Threading.DispatcherPriority.Render);
+        if (version != _detailTransitionVersion) return;
+        var targetRect = GetElementRect(_gameDetailView.SharedCoverImage, DetailTransitionLayer);
+        if (!IsValidRect(targetRect))
+        {
+            DetailTransitionLayer.Visibility = Visibility.Collapsed;
+            _gameDetailView.CompleteSharedTransition();
+            return;
+        }
+
+        _gameDetailView.PlaySharedDetailEntrance();
+        await AnimateTransitionFrameAsync(sourceRect, targetRect, opening: true);
+        if (version != _detailTransitionVersion) return;
+        DetailTransitionLayer.Visibility = Visibility.Collapsed;
+        _gameDetailView.CompleteSharedTransition();
+    }
+
+    private void ShowGameDetailImmediately(GameInfo game, MainViewModel vm)
+    {
+        _detailTransitionVersion++;
+        _sharedDetailTransitionActive = false;
+        DetailTransitionLayer.Visibility = Visibility.Collapsed;
+        GameDetailHost.Visibility = Visibility.Visible;
+        _gameDetailView.ShowGame(game, vm);
+        MotionBehavior.PlayEntrance(GameDetailHost, fromX: 24, fromY: 6, pace: AppMotion.Pace.Page);
+    }
+
+    private async Task CloseGameDetailImmediatelyAsync(int version)
+    {
+        await Task.Delay(MotionBehavior.PlayExit(GameDetailHost, toX: 18));
+        if (version != _detailTransitionVersion) return;
         _gameDetailView.CloseGame();
         GameDetailHost.Visibility = Visibility.Collapsed;
         GameDetailHost.BeginAnimation(OpacityProperty, null);
         GameDetailHost.Opacity = 1;
+        DetailTransitionLayer.Visibility = Visibility.Collapsed;
+        _sharedDetailTransitionActive = false;
+    }
+
+    private async Task AnimateTransitionFrameAsync(Rect from, Rect to, bool opening)
+    {
+        var duration = AppMotion.Enabled ? TimeSpan.FromMilliseconds(560) : TimeSpan.Zero;
+        SetTransitionFrame(from);
+        var easing = new CubicEase { EasingMode = EasingMode.EaseInOut };
+        DetailTransitionFrame.BeginAnimation(Canvas.LeftProperty, new DoubleAnimation(from.Left, to.Left, duration) { EasingFunction = easing });
+        DetailTransitionFrame.BeginAnimation(Canvas.TopProperty, new DoubleAnimation(from.Top, to.Top, duration) { EasingFunction = easing });
+        DetailTransitionFrame.BeginAnimation(FrameworkElement.WidthProperty, new DoubleAnimation(from.Width, to.Width, duration) { EasingFunction = easing });
+        DetailTransitionFrame.BeginAnimation(FrameworkElement.HeightProperty, new DoubleAnimation(from.Height, to.Height, duration) { EasingFunction = easing });
+
+        if (DetailTransitionFrame.RenderTransform is TransformGroup group && group.Children.Count >= 2 &&
+            group.Children[0] is ScaleTransform scale && group.Children[1] is RotateTransform rotate)
+        {
+            scale.ScaleX = scale.ScaleY = opening ? 0.965 : 0.985;
+            rotate.Angle = opening ? -0.55 : 0.45;
+            scale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(scale.ScaleX, 1, duration) { EasingFunction = easing });
+            scale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(scale.ScaleY, 1, duration) { EasingFunction = easing });
+            rotate.BeginAnimation(RotateTransform.AngleProperty, new DoubleAnimation(rotate.Angle, 0, duration) { EasingFunction = easing });
+        }
+
+        var glow = new DoubleAnimationUsingKeyFrames { Duration = new Duration(duration), FillBehavior = FillBehavior.HoldEnd };
+        glow.KeyFrames.Add(new EasingDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+        glow.KeyFrames.Add(new EasingDoubleKeyFrame(opening ? 0.42 : 0.30,
+            KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(duration.TotalMilliseconds * 0.32)), easing));
+        glow.KeyFrames.Add(new EasingDoubleKeyFrame(0,
+            KeyTime.FromTimeSpan(duration), easing));
+        DetailTransitionGlow.BeginAnimation(OpacityProperty, glow);
+        await Task.Delay(duration);
+        SetTransitionFrame(to);
+    }
+
+    private void SetTransitionFrame(Rect rect)
+    {
+        DetailTransitionFrame.BeginAnimation(Canvas.LeftProperty, null);
+        DetailTransitionFrame.BeginAnimation(Canvas.TopProperty, null);
+        DetailTransitionFrame.BeginAnimation(FrameworkElement.WidthProperty, null);
+        DetailTransitionFrame.BeginAnimation(FrameworkElement.HeightProperty, null);
+        DetailTransitionFrame.Width = Math.Max(1, rect.Width);
+        DetailTransitionFrame.Height = Math.Max(1, rect.Height);
+        Canvas.SetLeft(DetailTransitionFrame, rect.Left);
+        Canvas.SetTop(DetailTransitionFrame, rect.Top);
+    }
+
+    private static Rect GetElementRect(FrameworkElement element, Visual ancestor)
+    {
+        if (!element.IsLoaded || element.ActualWidth <= 0 || element.ActualHeight <= 0)
+            return Rect.Empty;
+        try
+        {
+            var origin = element.TransformToAncestor(ancestor).Transform(new Point(0, 0));
+            return new Rect(origin, new Size(element.ActualWidth, element.ActualHeight));
+        }
+        catch (InvalidOperationException)
+        {
+            return Rect.Empty;
+        }
+    }
+
+    private static bool IsValidRect(Rect rect) =>
+        !rect.IsEmpty && rect.Width > 1 && rect.Height > 1 &&
+        double.IsFinite(rect.Left) && double.IsFinite(rect.Top);
+
+    private static T? FindVisualParent<T>(DependencyObject? child) where T : DependencyObject
+    {
+        while (child is not null)
+        {
+            if (child is T match) return match;
+            child = VisualTreeHelper.GetParent(child);
+        }
+        return null;
+    }
+
+    private static FrameworkElement? FindCardRoot(DependencyObject? child)
+    {
+        while (child is not null)
+        {
+            if (child is FrameworkElement element && element.Tag is GameInfo)
+                return element;
+            child = VisualTreeHelper.GetParent(child);
+        }
+        return null;
+    }
+
+    private static Image? FindNamedImage(DependencyObject root, string name)
+    {
+        if (root is Image image && image.Name == name) return image;
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            var result = FindNamedImage(VisualTreeHelper.GetChild(root, i), name);
+            if (result is not null) return result;
+        }
+        return null;
     }
 
     private void HomeView_Unloaded(object sender, RoutedEventArgs e)
     {
         if (GameDetailHost.Visibility != Visibility.Visible) return;
+        _detailTransitionVersion++;
         _gameDetailView.CloseGame();
         GameDetailHost.Visibility = Visibility.Collapsed;
+        DetailTransitionLayer.Visibility = Visibility.Collapsed;
+        _sharedDetailTransitionActive = false;
     }
 
     private void HomeView_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -493,12 +694,11 @@ public partial class HomeView : UserControl
     private static void ShowPanel(Border panel)
     {
         panel.Visibility = Visibility.Visible;
-        panel.Opacity = 0;
-        var opacity = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(85))
-        {
-            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
-        };
-        panel.BeginAnimation(OpacityProperty, opacity);
+        panel.BeginAnimation(OpacityProperty, null);
+        panel.Opacity = 1;
+        if (AppMotion.Enabled)
+            panel.BeginAnimation(OpacityProperty,
+                AppMotion.To(1, AppMotion.Pace.Press, from: 0));
     }
 
     private static double GetMeasuredWidth(FrameworkElement element, double fallback)
@@ -519,12 +719,10 @@ public partial class HomeView : UserControl
     {
         if (panel.Visibility != Visibility.Visible) return;
 
-        var opacity = new DoubleAnimation(panel.Opacity, 0, TimeSpan.FromMilliseconds(65))
-        {
-            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
-        };
-        panel.BeginAnimation(OpacityProperty, opacity);
-        await Task.Delay(65);
+        if (AppMotion.Enabled)
+            panel.BeginAnimation(OpacityProperty,
+                AppMotion.To(0, AppMotion.Pace.Press, AppMotion.Curve.Exit));
+        await Task.Delay(AppMotion.EffectiveDuration(AppMotion.Pace.Press));
         panel.Visibility = Visibility.Collapsed;
         panel.BeginAnimation(OpacityProperty, null);
         panel.Opacity = 1;

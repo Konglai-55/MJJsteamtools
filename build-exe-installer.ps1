@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [ValidatePattern('^\d+\.\d+\.\d+(\.\d+)?$')]
-    [string]$Version = '2.7.0'
+    [string]$Version = '2.7.1'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -53,3 +53,4 @@ $hash = (Get-FileHash -LiteralPath $outputPath -Algorithm SHA256).Hash
 Write-Host "EXE installer created: $($output.FullName)"
 Write-Host ("Size: {0:N2} MB" -f ($output.Length / 1MB))
 Write-Host "SHA256: $hash"
+
