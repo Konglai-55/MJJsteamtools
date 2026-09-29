@@ -5,6 +5,7 @@ using System.Windows.Media.Animation;
 using System.Diagnostics;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using iNKORE.UI.WPF.Modern.Controls;
 using SteamLuaManager.Controls;
 using SteamLuaManager.Models;
@@ -271,6 +272,119 @@ public partial class HomeView : UserControl
         {
             _pendingToggleAppIds.Remove(game.AppId);
         }
+    }
+
+    private void FavoriteGameButton_Click(object sender, RoutedEventArgs e)
+    {
+        // The command runs synchronously before Click reaches this handler. Only
+        // play the "add to favorites" flight; removing a favorite stays instant.
+        if (sender is not Button button || button.DataContext is not GameInfo game || game.IsFavorite)
+            return;
+
+        // Capture both endpoints in the same visual tree before the command
+        // changes the favorite count/layout. This keeps the flight tied to the
+        // exact click-time card and favorites target positions.
+        PlayFavoriteDock(button);
+    }
+
+    /// <summary>
+    /// A deliberately simple shared-element transition: capture both rectangles
+    /// at click time, then move one cached cover directly between their centers.
+    /// No arc, layout animation, or shadow effect can introduce visual drift.
+    /// </summary>
+    private void PlayFavoriteDock(Button sourceButton)
+    {
+        if (!AppMotion.Enabled || FavoriteGamesTargetIcon.Visibility != Visibility.Visible)
+            return;
+
+        var cardRoot = FindCardRoot(sourceButton);
+        var sourceImage = cardRoot is null ? null : FindNamedImage(cardRoot, "CoverImage");
+        var sourceRect = Rect.Empty;
+        if (sourceImage is not null && sourceImage.IsLoaded && sourceImage.ActualWidth > 0 && sourceImage.ActualHeight > 0)
+        {
+            var sourcePoint = sourceImage.TranslatePoint(new Point(0, 0), FavoriteAnimationLayer);
+            sourceRect = new Rect(sourcePoint, new Size(sourceImage.ActualWidth, sourceImage.ActualHeight));
+        }
+        var targetPoint = FavoriteGamesTargetIcon.TranslatePoint(new Point(0, 0), FavoriteAnimationLayer);
+        var targetRect = new Rect(targetPoint, new Size(FavoriteGamesTargetIcon.ActualWidth, FavoriteGamesTargetIcon.ActualHeight));
+        if (sourceImage?.Source is not ImageSource imageSource ||
+            !IsValidRect(sourceRect) || !IsValidRect(targetRect))
+            return;
+
+        var targetCenter = FavoriteGamesTargetIcon.TranslatePoint(
+            new Point(FavoriteGamesTargetIcon.ActualWidth * 0.5, FavoriteGamesTargetIcon.ActualHeight * 0.5),
+            FavoriteAnimationLayer);
+        var targetWidth = Math.Max(22, FavoriteGamesTargetIcon.ActualWidth + 7);
+        var targetHeight = Math.Max(22, FavoriteGamesTargetIcon.ActualHeight + 7);
+        var flyer = new Border
+        {
+            Width = sourceRect.Width,
+            Height = sourceRect.Height,
+            CornerRadius = new CornerRadius(8),
+            ClipToBounds = true,
+            CacheMode = new BitmapCache(),
+            RenderTransformOrigin = new Point(0.5, 0.5),
+            RenderTransform = new ScaleTransform(1, 1),
+            Opacity = 0,
+            Background = new ImageBrush(imageSource)
+            {
+                Stretch = Stretch.UniformToFill,
+                AlignmentX = AlignmentX.Center,
+                AlignmentY = AlignmentY.Center
+            }
+        };
+        Canvas.SetLeft(flyer, sourceRect.Left);
+        Canvas.SetTop(flyer, sourceRect.Top);
+        FavoriteAnimationLayer.Children.Add(flyer);
+
+        var duration = TimeSpan.FromMilliseconds(320);
+        var targetScale = Math.Clamp(Math.Min(targetWidth / sourceRect.Width, targetHeight / sourceRect.Height), 0.09, 0.28);
+        var targetLeft = targetCenter.X - sourceRect.Width * targetScale * 0.5;
+        var targetTop = targetCenter.Y - sourceRect.Height * targetScale * 0.5;
+        var easing = AppMotion.Ease(AppMotion.Curve.InOut);
+        var left = new DoubleAnimation(sourceRect.Left, targetLeft, duration)
+        {
+            EasingFunction = easing,
+            FillBehavior = FillBehavior.HoldEnd
+        };
+        var top = new DoubleAnimation(sourceRect.Top, targetTop, duration)
+        {
+            EasingFunction = AppMotion.Ease(AppMotion.Curve.InOut),
+            FillBehavior = FillBehavior.HoldEnd
+        };
+        var scale = new DoubleAnimation(1, targetScale, duration)
+        {
+            EasingFunction = AppMotion.Ease(AppMotion.Curve.Settle),
+            FillBehavior = FillBehavior.HoldEnd
+        };
+        var opacity = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.HoldEnd };
+        opacity.KeyFrames.Add(new DiscreteDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+        opacity.KeyFrames.Add(new EasingDoubleKeyFrame(1, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(55)), AppMotion.Ease(AppMotion.Curve.Enter)));
+        opacity.KeyFrames.Add(new EasingDoubleKeyFrame(0, KeyTime.FromTimeSpan(duration), AppMotion.Ease(AppMotion.Curve.Exit)));
+        opacity.Completed += (_, _) => FavoriteAnimationLayer.Children.Remove(flyer);
+
+        flyer.BeginAnimation(Canvas.LeftProperty, left);
+        flyer.BeginAnimation(Canvas.TopProperty, top);
+        if (flyer.RenderTransform is ScaleTransform scaleTransform)
+        {
+            scaleTransform.BeginAnimation(ScaleTransform.ScaleXProperty, scale);
+            scaleTransform.BeginAnimation(ScaleTransform.ScaleYProperty, scale.Clone());
+        }
+        flyer.BeginAnimation(UIElement.OpacityProperty, opacity);
+        PulseFavoritesTarget();
+    }
+
+    private void PulseFavoritesTarget()
+    {
+        var transform = new ScaleTransform(1, 1);
+        FavoriteGamesToggle.RenderTransformOrigin = new Point(0.5, 0.5);
+        FavoriteGamesToggle.RenderTransform = transform;
+        var pulse = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
+        pulse.KeyFrames.Add(new DiscreteDoubleKeyFrame(1, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+        pulse.KeyFrames.Add(new EasingDoubleKeyFrame(1.045, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(150)), AppMotion.Ease(AppMotion.Curve.Enter)));
+        pulse.KeyFrames.Add(new EasingDoubleKeyFrame(1, KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(300)), AppMotion.Ease(AppMotion.Curve.Settle)));
+        transform.BeginAnimation(ScaleTransform.ScaleXProperty, pulse);
+        transform.BeginAnimation(ScaleTransform.ScaleYProperty, pulse.Clone());
     }
 
     private void MoreButton_Click(object sender, RoutedEventArgs e)

@@ -13,7 +13,7 @@
     <Title>MJJsteamtools</Title>
     <Product>MJJsteamtools</Product>
     <Company>MJJsteamtools</Company>
-    <Version>2.7.1</Version>
+    <Version>2.7.2</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -72,4 +72,3 @@
   </Target>
 
 </Project>
-

@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [ValidatePattern('^\d+\.\d+\.\d+(\.\d+)?$')]
-    [string]$Version = '2.7.1'
+    [string]$Version = '2.7.2'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -59,4 +59,3 @@ if (Test-Path -LiteralPath $exeBuilder) {
         throw "EXE installer build failed with exit code $LASTEXITCODE"
     }
 }
-

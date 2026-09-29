@@ -370,7 +370,7 @@
                 </Button>
             </Grid>
 
-            <ToggleButton Grid.Column="1"
+            <ToggleButton x:Name="FavoriteGamesToggle" Grid.Column="1"
                           IsChecked="{Binding IsFavoritesView, Mode=TwoWay}"
                           Style="{StaticResource FavoriteBentoToggleStyle}"
                           HorizontalAlignment="Left"
@@ -378,7 +378,7 @@
                           Margin="12,0,0,0"
                           ToolTip="只查看收藏的游戏">
                 <StackPanel Orientation="Horizontal">
-                    <ui:FontIcon Glyph="&#xE734;" FontSize="15" Foreground="#FFD166"
+                    <ui:FontIcon x:Name="FavoriteGamesTargetIcon" Glyph="&#xE734;" FontSize="15" Foreground="#FFD166"
                                  VerticalAlignment="Center" Margin="0,0,7,0"/>
                     <TextBlock Text="收藏游戏" VerticalAlignment="Center"
                                Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"/>
@@ -458,21 +458,6 @@
                 </TextBlock>
             </StackPanel>
         </Grid>
-
-        <ui:InfoBar Grid.Row="3"
-                    IsOpen="{Binding StatusMessage, Converter={StaticResource StringNotEmptyToBoolConverter}}"
-                    Message="{Binding StatusMessage}"
-                    Severity="Success"
-                    IsClosable="True"
-                    HorizontalAlignment="Stretch"
-                    Margin="0,0,0,4"
-                    ui:ControlHelper.CornerRadius="8">
-            <ui:InfoBar.Resources>
-                <Style TargetType="TextBlock">
-                    <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
-                </Style>
-            </ui:InfoBar.Resources>
-        </ui:InfoBar>
 
         <!-- Loading提示 -->
         <StackPanel Grid.Row="4" HorizontalAlignment="Center" Margin="0,40,0,0"
@@ -594,7 +579,8 @@
                                                 Command="{Binding DataContext.ToggleFavoriteCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                 CommandParameter="{Binding}"
                                                 AutomationProperties.Name="收藏或取消收藏"
-                                                ToolTip="收藏或取消收藏">
+                                                ToolTip="收藏或取消收藏"
+                                                Click="FavoriteGameButton_Click">
                                             <ui:FontIcon Style="{StaticResource FavoriteStarIconStyle}" FontSize="16"/>
                                         </Button>
                                     </Grid>
@@ -844,7 +830,8 @@
                                                     Width="30" Height="30" Margin="0,0,3,0"
                                                     Command="{Binding DataContext.ToggleFavoriteCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                     CommandParameter="{Binding}"
-                                                    ToolTip="收藏或取消收藏">
+                                                    ToolTip="收藏或取消收藏"
+                                                    Click="FavoriteGameButton_Click">
                                                 <ui:FontIcon Style="{StaticResource FavoriteStarIconStyle}" FontSize="14"/>
                                             </Button>
                                             <Button Visibility="{Binding DataContext.IsCardRefreshVisible, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVisibilityConverter}}"
@@ -995,7 +982,8 @@
                                                     Width="28" Height="28" Margin="0,0,2,0"
                                                     Command="{Binding DataContext.ToggleFavoriteCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                     CommandParameter="{Binding}"
-                                                    ToolTip="收藏或取消收藏">
+                                                    ToolTip="收藏或取消收藏"
+                                                    Click="FavoriteGameButton_Click">
                                                 <ui:FontIcon Style="{StaticResource FavoriteStarIconStyle}" FontSize="13"/>
                                             </Button>
                                             <Button Visibility="{Binding DataContext.IsCardRefreshVisible, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVisibilityConverter}}"
@@ -1070,6 +1058,11 @@
                 </Grid>
             </Border>
         </Canvas>
+
+        <!-- Steam-cart style favorite flight: a cover thumbnail travels from the card to the favorites control. -->
+        <Canvas x:Name="FavoriteAnimationLayer" Panel.ZIndex="170"
+                IsHitTestVisible="False" Visibility="Visible" ClipToBounds="False"
+                HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
 
         <!-- 慢速获取浮层 -->
         <Border Visibility="{Binding IsRefreshSlow, Converter={StaticResource BoolToVisibilityConverter}}"

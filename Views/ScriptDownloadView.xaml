@@ -11,7 +11,221 @@
         SnapsToDevicePixels="True">
 
     <UserControl.Resources>
-        <SolidColorBrush x:Key="RecommendationBadgeBrush" Color="#1D4057"/>
+        <!-- Match the library card's shadow, Gaussian radius, and seam stops. -->
+        <DropShadowEffect x:Key="DiscoveryCardShadowEffect"
+                          Color="#03080E" Direction="270"
+                          ShadowDepth="7" BlurRadius="22" Opacity="0.48"/>
+        <BlurEffect x:Key="DiscoveryCoverBlurEffect"
+                    Radius="16" KernelType="Gaussian"
+                    RenderingBias="Performance"/>
+        <DataTemplate x:Key="GameTagTemplate">
+            <Border Background="#284054" CornerRadius="5" Padding="7,4" Margin="0,0,5,5">
+                <TextBlock Text="{Binding}" FontSize="11"
+                           Foreground="{DynamicResource SteamTextSecondaryBrush}"/>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="GameFeatureTemplate">
+            <Border Width="27" Height="27" Margin="0,0,5,5" CornerRadius="6"
+                    Background="#284054" ToolTip="{Binding Label}"
+                    AutomationProperties.Name="{Binding Label}">
+                <Viewbox Width="17" Height="17" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Canvas Width="24" Height="24">
+                        <Path Data="{Binding IconPath}" Fill="#A9C4D9"/>
+                        <Path Data="{Binding CutoutPath}" Fill="#284054"/>
+                    </Canvas>
+                </Viewbox>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="ReviewStarSlotTemplate">
+            <ui:FontIcon Glyph="&#xE735;" FontSize="12" Margin="0,0,3,0">
+                <ui:FontIcon.Style>
+                    <Style TargetType="ui:FontIcon">
+                        <Setter Property="Foreground" Value="#63778A"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding}" Value="True">
+                                <Setter Property="Foreground" Value="#F2BF58"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </ui:FontIcon.Style>
+            </ui:FontIcon>
+        </DataTemplate>
+
+        <DataTemplate x:Key="DiscoveryCardTemplate">
+            <controls:ClippingBorder Background="#223448" CornerRadius="10"
+                                     BorderThickness="0" Margin="0,0,12,12"
+                                     Effect="{StaticResource DiscoveryCardShadowEffect}"
+                                     Style="{StaticResource SteamHoverLiftStyle}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="172"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Border Grid.Row="1" Panel.ZIndex="-1">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                <GradientStop Color="#25394D" Offset="0"/>
+                                <GradientStop Color="#1E2E3F" Offset="1"/>
+                            </LinearGradientBrush>
+                        </Border.Background>
+                    </Border>
+                    <Grid Grid.Row="0" Height="172" Background="#182536" ClipToBounds="True">
+                        <Image x:Name="DiscoveryCoverImage" Source="{Binding CoverUrl}" Tag="{Binding}"
+                               ImageFailed="WideRecommendationImage_ImageFailed"
+                               DataContextChanged="RecommendationImage_DataContextChanged"
+                               Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality"/>
+                        <Image Source="{Binding Source, ElementName=DiscoveryCoverImage}"
+                               Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality"
+                               Effect="{StaticResource DiscoveryCoverBlurEffect}"
+                               IsHitTestVisible="False">
+                            <Image.OpacityMask>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                    <GradientStop Color="#00000000" Offset="0.52"/>
+                                    <GradientStop Color="#66000000" Offset="0.76"/>
+                                    <GradientStop Color="#FF000000" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Image.OpacityMask>
+                        </Image>
+                        <Rectangle Height="66" VerticalAlignment="Bottom" IsHitTestVisible="False">
+                            <Rectangle.Fill>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                    <GradientStop Color="#0025394D" Offset="0"/>
+                                    <GradientStop Color="#4825394D" Offset="0.48"/>
+                                    <GradientStop Color="#FF25394D" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Rectangle.Fill>
+                        </Rectangle>
+                    </Grid>
+                    <StackPanel Grid.Row="1">
+                    <Grid Margin="14,12,14,7">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="{Binding Name}" FontSize="17" FontWeight="SemiBold"
+                                       TextTrimming="CharacterEllipsis"
+                                       Foreground="{DynamicResource SteamTextPrimaryBrush}"/>
+                            <TextBlock Text="{Binding AppId, StringFormat=AppID {0}}" FontSize="11"
+                                       Margin="0,3,0,0" Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="{Binding Price}" FontSize="13"
+                                   Margin="12,2,0,0" Foreground="{DynamicResource SteamGreenBrush}"/>
+                    </Grid>
+                    <StackPanel Margin="14,1,14,7">
+                        <ItemsControl ItemsSource="{Binding GameplayTags}"
+                                      ItemTemplate="{StaticResource GameTagTemplate}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                        </ItemsControl>
+                        <ItemsControl ItemsSource="{Binding Features}"
+                                      ItemTemplate="{StaticResource GameFeatureTemplate}" Margin="0,3,0,0">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                        </ItemsControl>
+                        <Border Background="#1B2B3B" CornerRadius="6" Padding="9,8" Margin="0,5,0,0"
+                                ToolTip="{Binding Review.Tooltip}">
+                            <StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ItemsControl ItemsSource="{Binding Review.StarSlots}"
+                                                  ItemTemplate="{StaticResource ReviewStarSlotTemplate}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                    </ItemsControl>
+                                    <TextBlock Grid.Column="1" Text="{Binding Review.StarsLabel}"
+                                               FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"
+                                               Foreground="#F2BF58"/>
+                                </Grid>
+                                <Grid Margin="0,5,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding Review.Description}" FontSize="12"
+                                               TextTrimming="CharacterEllipsis"
+                                               Foreground="{DynamicResource SteamTextSecondaryBrush}"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Review.CountLabel}"
+                                               Margin="8,0,0,0" FontSize="11"
+                                               Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                                </Grid>
+                                <StackPanel Margin="0,8,0,0"
+                                            Visibility="{Binding Review.HasHotReview, Converter={StaticResource BoolToVisibilityConverter}}"
+                                            ToolTip="{Binding Review.HotReview.Text}">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="最高热评" FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource SteamTextSecondaryBrush}"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding Review.HotReview.HelpfulLabel}"
+                                                   FontSize="10" Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                                    </Grid>
+                                    <TextBlock Text="{Binding Review.HotReview.Excerpt}"
+                                               FontSize="11" LineHeight="16" MaxHeight="32" TextWrapping="Wrap"
+                                               TextTrimming="CharacterEllipsis" Margin="0,4,0,0"
+                                               Foreground="{DynamicResource SteamTextSecondaryBrush}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                    <Grid Margin="14,0,14,14">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="{Binding ReleaseDate}" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis" Margin="0,0,8,0"
+                                   Foreground="{DynamicResource SteamTextTertiaryBrush}" FontSize="11"/>
+                        <Button Grid.Column="1" Tag="{Binding}" Click="OpenSteamStoreButton_Click"
+                                Style="{DynamicResource RecommendationStoreButtonStyle}"
+                                Width="31" Height="29" Padding="0" Margin="0,0,7,0"
+                                Focusable="False" ToolTip="在 Steam 客户端中打开商店页"
+                                AutomationProperties.Name="在 Steam 客户端中打开商店页">
+                            <ui:FontIcon Glyph="&#xE719;" FontSize="15" Foreground="{DynamicResource SteamAccentBrush}"/>
+                        </Button>
+                        <Button Grid.Column="2" Content="一键入库"
+                                Command="{Binding DataContext.DownloadGameCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                CommandParameter="{Binding}"
+                                Style="{DynamicResource RecommendationImportButtonStyle}"
+                                IsEnabled="{Binding DataContext.IsDownloading, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolInvertConverter}}"/>
+                    </Grid>
+                    </StackPanel>
+                </Grid>
+            </controls:ClippingBorder>
+        </DataTemplate>
+
+        <Style x:Key="RecommendationStoreButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#2A4053"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="StoreButtonBody" Background="{TemplateBinding Background}"
+                                CornerRadius="5" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="StoreButtonBody" Property="Background" Value="#344F65"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
         <Style x:Key="RecommendationImportButtonStyle" TargetType="Button">
             <Setter Property="Foreground" Value="White"/>
@@ -45,101 +259,17 @@
             </Setter>
         </Style>
 
-        <Style x:Key="CarouselArrowButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="ArrowHover" Background="{TemplateBinding Background}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ArrowHover" Property="Background" Value="#243E56"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Opacity" Value="0.7"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <DataTemplate x:Key="FeaturedLargeCardTemplate">
-            <Grid Background="Transparent" Style="{StaticResource SteamHoverLiftStyle}">
-                <Border Margin="0,12,0,0" Background="#0C1520" ClipToBounds="True">
-                    <Grid>
-                        <Image Source="{Binding PortraitCoverUrl}" Tag="{Binding}"
-                               ImageFailed="PortraitRecommendationImage_ImageFailed"
-                               DataContextChanged="RecommendationImage_DataContextChanged" Stretch="UniformToFill"
-                               RenderOptions.BitmapScalingMode="HighQuality"/>
-                        <Button HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                                Command="{Binding DataContext.DownloadGameCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                CommandParameter="{Binding}"
-                                Style="{StaticResource RecommendationImportButtonStyle}"
-                                IsEnabled="{Binding DataContext.IsDownloading, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolInvertConverter}}">
-                            一键入库
-                        </Button>
-                    </Grid>
-                </Border>
-                <Border HorizontalAlignment="Left" VerticalAlignment="Top"
-                        Margin="0" Padding="10,5"
-                        Background="{StaticResource RecommendationBadgeBrush}" CornerRadius="0,0,5,0">
-                    <TextBlock Text="热门推荐" Foreground="White" FontSize="11"/>
-                </Border>
-            </Grid>
-        </DataTemplate>
-
-        <DataTemplate x:Key="FeaturedSmallCardTemplate">
-            <Grid Background="Transparent" Style="{StaticResource SteamHoverLiftStyle}">
-                <Border Margin="0,12,0,0" Background="#0C1520" ClipToBounds="True">
-                    <Grid>
-                        <Image Source="{Binding CoverUrl}" Tag="{Binding}"
-                               ImageFailed="WideRecommendationImage_ImageFailed"
-                               DataContextChanged="RecommendationImage_DataContextChanged" Stretch="UniformToFill"
-                               RenderOptions.BitmapScalingMode="HighQuality"/>
-                        <Button HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                                Command="{Binding DataContext.DownloadGameCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                CommandParameter="{Binding}"
-                                Style="{StaticResource RecommendationImportButtonStyle}"
-                                IsEnabled="{Binding DataContext.IsDownloading, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolInvertConverter}}">
-                            一键入库
-                        </Button>
-                    </Grid>
-                </Border>
-                <Border HorizontalAlignment="Left" VerticalAlignment="Top"
-                        Margin="0" Padding="10,5"
-                        Background="{StaticResource RecommendationBadgeBrush}" CornerRadius="0,0,5,0">
-                    <TextBlock Text="热门推荐" Foreground="White" FontSize="11"/>
-                </Border>
-            </Grid>
-        </DataTemplate>
-
-        <DataTemplate x:Key="FeaturedPeekCardTemplate">
-            <Grid Background="Transparent" Style="{StaticResource SteamHoverLiftStyle}">
-                <Border Margin="0,12,0,0" Background="#0C1520" ClipToBounds="True">
-                    <Image Source="{Binding PortraitCoverUrl}" Tag="{Binding}"
-                           ImageFailed="PortraitRecommendationImage_ImageFailed"
-                           DataContextChanged="RecommendationImage_DataContextChanged" Stretch="UniformToFill"
-                           RenderOptions.BitmapScalingMode="HighQuality"/>
-                </Border>
-                <Border HorizontalAlignment="Left" VerticalAlignment="Top"
-                        Margin="0" Padding="10,5"
-                        Background="{StaticResource RecommendationBadgeBrush}" CornerRadius="0,0,5,0">
-                    <TextBlock Text="热门推荐" Foreground="White" FontSize="11"/>
-                </Border>
-            </Grid>
-        </DataTemplate>
-
         <DataTemplate x:Key="GameResultRowTemplate">
-            <Border Background="{DynamicResource SteamSurfaceBrush}" BorderThickness="0"
-                    Style="{StaticResource SteamHoverLiftStyle}"
-                    Padding="0" MinHeight="90" Margin="0,0,0,8"
-                    CornerRadius="3" ClipToBounds="True">
+            <controls:ClippingBorder BorderThickness="0" CornerRadius="10"
+                                     Style="{StaticResource SteamHoverLiftStyle}"
+                                     Effect="{StaticResource DiscoveryCardShadowEffect}"
+                                     Padding="0" MinHeight="118" Margin="0,0,0,10">
+                <controls:ClippingBorder.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="#25394D" Offset="0"/>
+                        <GradientStop Color="#1E2E3F" Offset="1"/>
+                    </LinearGradientBrush>
+                </controls:ClippingBorder.Background>
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="210"/>
@@ -148,10 +278,40 @@
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <Image Grid.Column="0" Source="{Binding CoverUrl}" Tag="{Binding}"
-                           ImageFailed="WideRecommendationImage_ImageFailed"
-                           DataContextChanged="RecommendationImage_DataContextChanged" Width="210" Height="90"
-                           Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality"/>
+                    <Grid Grid.Column="0" Width="210" MinHeight="118"
+                          ClipToBounds="True" Background="#182536">
+                        <Image x:Name="ResultCoverImage" Source="{Binding CoverUrl}" Tag="{Binding}"
+                               ImageFailed="WideRecommendationImage_ImageFailed"
+                               DataContextChanged="RecommendationImage_DataContextChanged"
+                               Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality"/>
+                        <Image Source="{Binding Source, ElementName=ResultCoverImage}"
+                               Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality"
+                               Effect="{StaticResource DiscoveryCoverBlurEffect}"
+                               IsHitTestVisible="False">
+                            <Image.OpacityMask>
+                                <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
+                                    <GradientStop Color="#00000000" Offset="0.52"/>
+                                    <GradientStop Color="#66000000" Offset="0.76"/>
+                                    <GradientStop Color="#FF000000" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Image.OpacityMask>
+                        </Image>
+                        <Rectangle Width="66" HorizontalAlignment="Right" IsHitTestVisible="False">
+                            <Rectangle.Fill>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                    <GradientStop Color="#25394D" Offset="0"/>
+                                    <GradientStop Color="#1E2E3F" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Rectangle.Fill>
+                            <Rectangle.OpacityMask>
+                                <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
+                                    <GradientStop Color="#00000000" Offset="0"/>
+                                    <GradientStop Color="#66000000" Offset="0.48"/>
+                                    <GradientStop Color="#FF000000" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Rectangle.OpacityMask>
+                        </Rectangle>
+                    </Grid>
                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="14,8,12,8">
                         <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold"
                                    Foreground="{DynamicResource SteamTextPrimaryBrush}"
@@ -162,6 +322,18 @@
                                    Visibility="{Binding HasSecondaryName, Converter={StaticResource BoolToVisibilityConverter}}"/>
                         <TextBlock Text="{Binding AppId, StringFormat=AppID {0}}" FontSize="11" Margin="0,3,0,0"
                                    Foreground="{DynamicResource SteamTextTertiaryBrush}"/>
+                        <ItemsControl ItemsSource="{Binding GameplayTags}"
+                                      ItemTemplate="{StaticResource GameTagTemplate}" Margin="0,6,0,0">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                        </ItemsControl>
+                        <ItemsControl ItemsSource="{Binding Features}"
+                                      ItemTemplate="{StaticResource GameFeatureTemplate}" Margin="0,3,0,0">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                        </ItemsControl>
                     </StackPanel>
                     <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right"
                                 MinWidth="112" Margin="8,6,0,6">
@@ -173,10 +345,10 @@
                     </StackPanel>
                     <Button Grid.Column="3" Tag="{Binding}" Click="OpenSteamStoreButton_Click"
                             Width="44" Height="42" Padding="0" Focusable="False" Margin="14,0,8,0"
-                            VerticalAlignment="Center" Background="#4B681A" BorderBrush="#4B681A"
+                            VerticalAlignment="Center" Background="#293F51" BorderThickness="0"
                             ToolTip="在 Steam 客户端中打开商店页"
                             AutomationProperties.Name="在 Steam 客户端中打开商店页">
-                        <ui:FontIcon Glyph="&#xE719;" FontSize="20" Foreground="{DynamicResource SteamTextSecondaryBrush}"/>
+                        <ui:FontIcon Glyph="&#xE719;" FontSize="20" Foreground="{DynamicResource SteamAccentBrush}"/>
                     </Button>
                     <Button Grid.Column="4"
                             Command="{Binding DataContext.DownloadGameCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
@@ -188,11 +360,13 @@
                         入库
                     </Button>
                 </Grid>
-            </Border>
+            </controls:ClippingBorder>
         </DataTemplate>
     </UserControl.Resources>
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <ScrollViewer x:Name="RecommendationScrollViewer"
+                  VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                  ScrollChanged="RecommendationScrollViewer_ScrollChanged">
         <StackPanel Margin="26,22,26,28" HorizontalAlignment="Stretch">
 
             <Grid Margin="0,0,0,18">
@@ -205,20 +379,21 @@
                     <TextBlock Text="按中文名、英文名、别名或 Steam AppID 查找；确认后写入本地游戏库"
                                Style="{StaticResource SteamPageSubtitleStyle}" Margin="0,3,0,0"/>
                 </StackPanel>
-                <Border Grid.Column="1" Background="#182E3E" BorderBrush="#31526A"
-                        BorderThickness="1" CornerRadius="3" Padding="11,6" VerticalAlignment="Center">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="清单源  " Foreground="{DynamicResource SteamTextTertiaryBrush}" FontSize="11"/>
+                <Border Grid.Column="1" Background="#1B3041" BorderThickness="0"
+                        CornerRadius="8" Padding="14,9" VerticalAlignment="Center">
+                    <StackPanel>
+                        <TextBlock Text="{Binding ManifestCatalogCountText}" Foreground="{DynamicResource SteamTextPrimaryBrush}"
+                                   FontSize="12" FontWeight="SemiBold"/>
                         <TextBlock Text="{Binding CurrentDataSourceLabel, Mode=OneWay}"
-                                   Foreground="{DynamicResource SteamAccentBrush}" FontSize="11" FontWeight="SemiBold"/>
+                                   Foreground="{DynamicResource SteamAccentBrush}" FontSize="11"/>
                     </StackPanel>
                 </Border>
             </Grid>
 
             <!-- 紧凑搜索区 -->
-            <Grid Width="570" HorizontalAlignment="Left" Margin="0,0,0,24">
+            <Grid MaxWidth="720" HorizontalAlignment="Stretch" Margin="0,0,0,20">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="420"/>
+                    <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
@@ -286,6 +461,19 @@
                 </Button>
             </Grid>
 
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
+                <TextBlock Text="标签筛选" VerticalAlignment="Center" Margin="0,0,10,0"
+                           Foreground="{DynamicResource SteamTextSecondaryBrush}" FontSize="12"/>
+                <ComboBox Width="190" Height="34" ItemsSource="{Binding AvailableTags}"
+                          SelectedItem="{Binding SelectedTag, Mode=TwoWay}"
+
+                          ToolTip="按类型或功能标签筛选推荐和搜索结果"/>
+                <TextBlock Text="{Binding FilteredSearchResultCount, StringFormat=显示 {0} 个结果}"
+                           VerticalAlignment="Center" Margin="12,0,0,0"
+                           Foreground="{DynamicResource SteamTextTertiaryBrush}" FontSize="12"
+                           Visibility="{Binding HasStartedSearch, Converter={StaticResource BoolToVisibilityConverter}}"/>
+            </StackPanel>
+
             <!-- 首屏推荐：执行搜索或入库后让位给日志和结果。 -->
             <StackPanel>
                 <StackPanel.Style>
@@ -299,114 +487,47 @@
                     </Style>
                 </StackPanel.Style>
                 <Grid Margin="0,0,0,12">
-                    <TextBlock Text="热门推荐" FontSize="20" FontWeight="SemiBold"
+                    <TextBlock Text="为你推荐" FontSize="20" FontWeight="SemiBold"
                                Foreground="{DynamicResource SteamTextPrimaryBrush}"/>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom"
                                 Margin="0,0,48,2">
                         <Ellipse Width="6" Height="6" Fill="{DynamicResource SteamGreenBrush}" Margin="0,0,7,0"/>
-                        <TextBlock Text="Steam 在线热门 · 每日更新 · 已排除免费游戏" FontSize="12"
+                        <TextBlock Text="每日轮换 · 新品、特惠、畅销与热门混合推荐 · 只看游戏" FontSize="12"
                                    Foreground="{DynamicResource SteamTextSecondaryBrush}"/>
                     </StackPanel>
                 </Grid>
-                <Grid Height="360" Margin="0,0,0,8">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="48"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="48"/>
-                        </Grid.ColumnDefinitions>
-
-                        <Border Grid.Column="1" Background="#223E59" CornerRadius="0" ClipToBounds="True">
-                        <Grid Margin="14,18">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="1.05*"/>
-                                <ColumnDefinition Width="12"/>
-                                <ColumnDefinition Width="1*"/>
-                                <ColumnDefinition Width="12"/>
-                                <ColumnDefinition Width="1.15*"/>
-                                <ColumnDefinition Width="12"/>
-                                <ColumnDefinition Width="82"/>
-                            </Grid.ColumnDefinitions>
-
-                            <ContentControl Grid.Column="0" Content="{Binding HotRecommendationSlot1, NotifyOnTargetUpdated=True}"
-                                            controls:MotionBehavior.IsContentTransitionEnabled="True"
-                                            ContentTemplate="{StaticResource FeaturedLargeCardTemplate}"/>
-                            <ContentControl Grid.Column="2" Content="{Binding HotRecommendationSlot2, NotifyOnTargetUpdated=True}"
-                                            controls:MotionBehavior.IsContentTransitionEnabled="True"
-                                            ContentTemplate="{StaticResource FeaturedLargeCardTemplate}"/>
-
-                            <Grid Grid.Column="4">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="*"/>
-                                    <RowDefinition Height="10"/>
-                                    <RowDefinition Height="*"/>
-                                </Grid.RowDefinitions>
-                                <ContentControl Grid.Row="0" Content="{Binding HotRecommendationSlot3, NotifyOnTargetUpdated=True}"
-                                                controls:MotionBehavior.IsContentTransitionEnabled="True"
-                                                ContentTemplate="{StaticResource FeaturedSmallCardTemplate}"/>
-                                <ContentControl Grid.Row="2" Content="{Binding HotRecommendationSlot4, NotifyOnTargetUpdated=True}"
-                                                controls:MotionBehavior.IsContentTransitionEnabled="True"
-                                                ContentTemplate="{StaticResource FeaturedSmallCardTemplate}"/>
-                            </Grid>
-
-                            <ContentControl Grid.Column="6" Content="{Binding HotRecommendationSlot5, NotifyOnTargetUpdated=True}"
-                                            controls:MotionBehavior.IsContentTransitionEnabled="True"
-                                            ContentTemplate="{StaticResource FeaturedPeekCardTemplate}"/>
-
-                            <Border Grid.Column="6" Panel.ZIndex="5" Width="58" HorizontalAlignment="Right"
-                                    IsHitTestVisible="False">
-                                <Border.Background>
-                                    <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
-                                        <GradientStop Color="#001A3046" Offset="0"/>
-                                        <GradientStop Color="#F21A3046" Offset="1"/>
-                                    </LinearGradientBrush>
-                                </Border.Background>
-                            </Border>
-                        </Grid>
-                        </Border>
-
-                        <Button Grid.Column="0" Panel.ZIndex="10"
-                                Command="{Binding ShowPreviousRecommendationsCommand}"
-                                Style="{StaticResource CarouselArrowButtonStyle}" ToolTip="上一组推荐">
-                            <Path Data="M 27,9 L 10,28 L 27,47"
-                                  Stroke="#D5DCE3" StrokeThickness="7"
-                                  StrokeStartLineCap="Square" StrokeEndLineCap="Square"
-                                  StrokeLineJoin="Miter" Stretch="None"/>
-                        </Button>
-                        <Button Grid.Column="2" Panel.ZIndex="10"
-                                Command="{Binding ShowNextRecommendationsCommand}"
-                                Style="{StaticResource CarouselArrowButtonStyle}" ToolTip="下一组推荐">
-                            <Path Data="M 9,9 L 26,28 L 9,47"
-                                  Stroke="#D5DCE3" StrokeThickness="7"
-                                  StrokeStartLineCap="Square" StrokeEndLineCap="Square"
-                                  StrokeLineJoin="Miter" Stretch="None"/>
-                        </Button>
-                </Grid>
-
-                <ItemsControl ItemsSource="{Binding HotRecommendationPages}"
-                              HorizontalAlignment="Center" Margin="0,0,0,20">
+                <ItemsControl ItemsSource="{Binding FilteredHotRecommendations}"
+                              ItemContainerStyle="{StaticResource SteamAnimatedItemContainerStyle}"
+                              ItemTemplate="{StaticResource DiscoveryCardTemplate}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <StackPanel Orientation="Horizontal"/>
+                            <controls:AdaptiveUniformGrid MinItemWidth="310" MaxColumns="5"/>
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border x:Name="PageDot" Width="18" Height="8" Margin="3,0"
-                                    CornerRadius="4" Background="#526170"/>
-                            <DataTemplate.Triggers>
-                                <DataTrigger Binding="{Binding IsActive}" Value="True">
-                                    <Setter TargetName="PageDot" Property="Background" Value="#F5F7F9"/>
-                                </DataTrigger>
-                            </DataTemplate.Triggers>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
                 </ItemsControl>
-
-                <TextBlock Text="更多推荐" FontSize="24" FontWeight="SemiBold" Margin="6,0,0,12"
+                <Border Background="{DynamicResource SteamSurfaceBrush}" CornerRadius="9"
+                        Padding="18" Margin="0,2,0,18"
+                        Visibility="{Binding FilteredHotRecommendations.Count, Converter={StaticResource ZeroToVisibilityConverter}}">
+                    <TextBlock Text="当前标签暂无推荐游戏，请切换其他标签。"
+                               Foreground="{DynamicResource SteamTextSecondaryBrush}"/>
+                </Border>
+                <TextBlock Text="继续发现" FontSize="24" FontWeight="SemiBold" Margin="6,0,0,12"
                            Foreground="{DynamicResource SteamTextPrimaryBrush}"/>
-                <ItemsControl ItemsSource="{Binding MoreRecommendations}"
+                <ItemsControl ItemsSource="{Binding FilteredMoreRecommendations}"
                               ItemContainerStyle="{StaticResource SteamAnimatedItemContainerStyle}"
-                              ItemTemplate="{StaticResource GameResultRowTemplate}"/>
+                              ItemTemplate="{StaticResource DiscoveryCardTemplate}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <controls:AdaptiveUniformGrid MinItemWidth="310" MaxColumns="5"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+                <Button Content="{Binding RecommendationLoadStatus}"
+                        Command="{Binding LoadMoreRecommendationsCommand}"
+                        IsEnabled="{Binding IsLoadingRecommendations, Converter={StaticResource BoolInvertConverter}}"
+                        Visibility="{Binding HasMoreRecommendations, Converter={StaticResource BoolToVisibilityConverter}}"
+                        Style="{StaticResource SteamSecondaryButtonStyle}"
+                        HorizontalAlignment="Center" MinWidth="230" Margin="0,4,0,12" Padding="18,10"/>
             </StackPanel>
 
             <!-- 搜索/入库开始后才显示运行信息。 -->
@@ -582,11 +703,11 @@
                     </Border>
                 </Expander>
 
-                <ItemsControl ItemsSource="{Binding SearchResults}"
+                <ItemsControl ItemsSource="{Binding FilteredSearchResults}"
                               ItemContainerStyle="{StaticResource SteamAnimatedItemContainerStyle}"
                               ItemTemplate="{StaticResource GameResultRowTemplate}"
                               Margin="0,0,0,8"
-                              Visibility="{Binding SearchResults.Count, Converter={StaticResource NonZeroToVisibilityConverter}}"/>
+                              Visibility="{Binding FilteredSearchResults.Count, Converter={StaticResource NonZeroToVisibilityConverter}}"/>
             </StackPanel>
         </StackPanel>
     </ScrollViewer>

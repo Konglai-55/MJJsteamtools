@@ -540,14 +540,5 @@
 
         </TabControl>
 
-        <ui:InfoBar Grid.Row="2"
-                    IsOpen="{Binding StatusMessage, Converter={StaticResource StringNotEmptyToBoolConverter}}"
-                    Message="{Binding StatusMessage}"
-                    Severity="Informational"
-                    IsClosable="False"
-                    HorizontalAlignment="Left"
-                    Margin="0,12,0,0"
-                    ui:ControlHelper.CornerRadius="8"/>
-
     </Grid>
 </UserControl>

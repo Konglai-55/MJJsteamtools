@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using SteamLuaManager.Controls;
 using SteamLuaManager.Services;
 using SteamLuaManager.ViewModels;
 
@@ -52,21 +53,8 @@ public partial class ExtractionView : UserControl
 
     private void LogScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {
-        var innerScroller = (ScrollViewer)sender;
-        if ((e.Delta > 0 && innerScroller.VerticalOffset == 0) ||
-            (e.Delta < 0 && innerScroller.VerticalOffset >= innerScroller.ScrollableHeight))
-        {
-            var parent = FindVisualParent<ScrollViewer>((DependencyObject)sender);
-            if (parent != null)
-            {
-                e.Handled = true;
-                var newArgs = new MouseWheelEventArgs(e.MouseDevice, e.Timestamp, e.Delta)
-                {
-                    RoutedEvent = UIElement.MouseWheelEvent
-                };
-                parent.RaiseEvent(newArgs);
-            }
-        }
+        if (sender is ScrollViewer innerScroller)
+            e.Handled = SmoothScrollBehavior.HandleWheel(innerScroller, e.Delta);
     }
 
     private void LibrarySearchBox_TextChanged(object sender, TextChangedEventArgs e)

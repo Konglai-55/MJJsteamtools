@@ -45,7 +45,8 @@ internal sealed class InstallerForm : Form
 
         var header = new Panel { Dock = DockStyle.Top, Height = 104, BackColor = Color.FromArgb(24, 39, 55) };
         header.Controls.Add(new Label { AutoSize = true, Text = "安装 MJJsteamtools", Font = new Font("Segoe UI", 20, FontStyle.Bold), ForeColor = Color.White, Location = new Point(28, 20) });
-        header.Controls.Add(new Label { AutoSize = true, Text = "Steam 游戏库与 Lua/Bin 管理工具 · 版本 2.7.0", Font = new Font("Segoe UI", 10), ForeColor = Color.FromArgb(190, 205, 220), Location = new Point(31, 63) });
+        var version = typeof(Program).Assembly.GetName().Version?.ToString(3) ?? "2.7.2";
+        header.Controls.Add(new Label { AutoSize = true, Text = $"Steam 游戏库与 Lua/Bin 管理工具 · 版本 {version}", Font = new Font("Segoe UI", 10), ForeColor = Color.FromArgb(190, 205, 220), Location = new Point(31, 63) });
 
         _body.Dock = DockStyle.Fill;
         _body.Padding = new Padding(30, 12, 30, 0);

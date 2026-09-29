@@ -590,6 +590,20 @@ public partial class MainWindow : Window
 
     private void Window_SourceInitialized(object? sender, EventArgs e)
     {
+        // Prefer a three-card search layout on desktop, but never let the
+        // initial window extend beyond the current monitor's work area.
+        var workArea = SystemParameters.WorkArea;
+        if (Width > workArea.Width)
+        {
+            Width = Math.Max(MinWidth, workArea.Width);
+            Left = workArea.Left + (workArea.Width - Width) / 2;
+        }
+        if (Height > workArea.Height)
+        {
+            Height = Math.Max(MinHeight, workArea.Height);
+            Top = workArea.Top + (workArea.Height - Height) / 2;
+        }
+
         try
         {
             var windowHandle = new WindowInteropHelper(this).Handle;
@@ -679,6 +693,7 @@ public partial class MainWindow : Window
 
     private void PaneToggleButton_Click(object sender, RoutedEventArgs e)
     {
+        BouncePaneToggleTab();
         _isPaneOpen = !_isPaneOpen;
         NavView.IsPaneOpen = _isPaneOpen;
         UpdateCollapsedNavigationVisuals(animate: true);
@@ -704,6 +719,31 @@ public partial class MainWindow : Window
         PaneToggleButton.ToolTip = _isPaneOpen ? "收起侧边栏" : "展开侧边栏";
         if (!_isPaneOpen && AppMotion.Enabled)
             TrackCompactIndicatorThroughTransition();
+    }
+
+    private void BouncePaneToggleTab()
+    {
+        PaneToggleButton.ApplyTemplate();
+        if (PaneToggleButton.Template.FindName("PaneToggleBackground", PaneToggleButton) is not Border tab)
+            return;
+
+        // Template Freezables can be sealed by WPF. Install a per-instance
+        // transform before animating so the click feedback never crashes input.
+        var transform = new TranslateTransform();
+        tab.RenderTransform = transform;
+        transform.BeginAnimation(TranslateTransform.XProperty, null);
+        transform.X = 0;
+        if (!AppMotion.Enabled)
+            return;
+
+        // Move only the protruding tab, not the pane or its layout slot.
+        // Its sidebar-colored surface stays unchanged throughout the press.
+        var bounce = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
+        bounce.KeyFrames.Add(new EasingDoubleKeyFrame(5,
+            KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(85)), AppMotion.Ease(AppMotion.Curve.Enter)));
+        bounce.KeyFrames.Add(new EasingDoubleKeyFrame(0,
+            KeyTime.FromTimeSpan(AppMotion.Duration(AppMotion.Pace.Content)), AppMotion.Ease(AppMotion.Curve.Settle)));
+        transform.BeginAnimation(TranslateTransform.XProperty, bounce, HandoffBehavior.SnapshotAndReplace);
     }
 
     private void RefreshResponsiveContentLayout()

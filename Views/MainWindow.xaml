@@ -7,7 +7,7 @@
         xmlns:controls="clr-namespace:SteamLuaManager.Controls"
         Title="MJJsteamtools"
         Icon="pack://application:,,,/Assets/brand-app.png"
-        Height="800" Width="1180"
+        Height="860" Width="1360"
         MinHeight="560" MinWidth="840"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None"
@@ -415,24 +415,22 @@
                 <Button.Template>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="PaneToggleBackground"
-                                Background="{TemplateBinding Background}"
+                                Background="{DynamicResource SteamSidebarBrush}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
                                 CornerRadius="0,7,7,0">
+                            <Border.RenderTransform>
+                                <TranslateTransform X="0"/>
+                            </Border.RenderTransform>
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="PaneToggleBackground" Property="Background" Value="#243747"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Button.Template>
                 <!-- 展开时箭头指向左侧（收起），收起后切换为向右（展开）。 -->
-                <ui:FontIcon x:Name="PaneToggleGlyph" Glyph="&#xE76B;" FontSize="18"
+                        <ui:FontIcon x:Name="PaneToggleGlyph" Glyph="&#xE76B;" FontSize="18"
                              Foreground="{DynamicResource SteamTextTertiaryBrush}">
                     <ui:FontIcon.RenderTransform>
-                        <TranslateTransform X="3"/>
+                        <TranslateTransform X="7"/>
                     </ui:FontIcon.RenderTransform>
                 </ui:FontIcon>
             </Button>

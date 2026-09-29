@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
@@ -11,6 +12,7 @@ using System.Windows.Controls;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using HtmlAgilityPack;
 using iNKORE.UI.WPF.Modern.Controls;
 using SteamLuaManager.Models;
 using SteamLuaManager.Services;
@@ -24,7 +26,9 @@ public partial class ScriptDownloadViewModel : ObservableObject
     private readonly ISettingsService _settingsService;
     private readonly IHttpClientProvider _httpClientProvider;
     private readonly ISteamCloudPreferenceService _steamCloudPreferenceService;
+    private readonly ConcurrentDictionary<int, GameReviewSummary> _reviewCache = new();
     private readonly DispatcherTimer _modeRefreshTimer;
+    private readonly Task _dailyRecommendationsTask;
     private string _currentDownloadMode = "DepotKey";
 
     [ObservableProperty]
@@ -40,7 +44,22 @@ public partial class ScriptDownloadViewModel : ObservableObject
     private bool _hasStartedSearch;
 
     [ObservableProperty]
+    private bool _isLoadingRecommendations;
+
+    [ObservableProperty]
+    private bool _hasMoreRecommendations = true;
+
+    [ObservableProperty]
+    private bool _canAutoLoadRecommendations = true;
+
+    [ObservableProperty]
+    private string _recommendationLoadStatus = "继续向下探索更多游戏";
+
+    [ObservableProperty]
     private string _statusMessage = "就绪";
+
+    [ObservableProperty]
+    private string _selectedTag = "全部标签";
 
     [ObservableProperty]
     private bool _isImportResultOpen;
@@ -79,13 +98,28 @@ public partial class ScriptDownloadViewModel : ObservableObject
     };
 
     public ObservableCollection<FoundGame> SearchResults { get; } = new();
+    public ObservableCollection<FoundGame> FilteredSearchResults { get; } = new();
+    public ObservableCollection<string> AvailableTags { get; } = new();
     public ObservableCollection<SearchSuggestion> SearchSuggestions { get; } = new();
     public ObservableCollection<string> LogLines { get; } = new();
     public ObservableCollection<FoundGame> HotRecommendations { get; } = new();
     public ObservableCollection<FoundGame> MoreRecommendations { get; } = new();
+    public ObservableCollection<FoundGame> FilteredHotRecommendations { get; } = new();
+    public ObservableCollection<FoundGame> FilteredMoreRecommendations { get; } = new();
     public ObservableCollection<CarouselPageIndicator> HotRecommendationPages { get; } = new();
+    // The ZIP source does not publish a catalog index. App-info cache entries
+    // are not manifests, so they must not be presented as a library total.
+    public string ManifestCatalogCountText => "清单总数 · 待清单源同步";
+    public int FilteredSearchResultCount => FilteredSearchResults.Count;
     private int _hotRecommendationStartIndex;
     private bool _isCarouselSwitching;
+    private int _recommendationSearchOffset;
+    // Steam search rounds offsets down to its 25-result page boundary.
+    private const int RecommendationPageSize = 25;
+    private readonly Queue<int> _pendingRecommendationAppIds = new();
+    private readonly Queue<FoundGame> _pendingRecommendationGames = new();
+    private bool _hasMoreRecommendationSource = true;
+    private bool _suspendRecommendationFiltering;
 
     public FoundGame? HotRecommendationSlot1 => GetHotRecommendationSlot(0);
     public FoundGame? HotRecommendationSlot2 => GetHotRecommendationSlot(1);
@@ -106,7 +140,10 @@ public partial class ScriptDownloadViewModel : ObservableObject
         _httpClientProvider = httpClientProvider;
         _steamCloudPreferenceService = steamCloudPreferenceService;
         _currentDownloadMode = _settingsService.Load().DownloadMode;
-        HotRecommendations.CollectionChanged += (_, _) => NotifyHotRecommendationSlots();
+        HotRecommendations.CollectionChanged += (_, _) => { if (!_suspendRecommendationFiltering) ApplyTagFilter(); };
+        MoreRecommendations.CollectionChanged += (_, _) => { if (!_suspendRecommendationFiltering) ApplyTagFilter(); };
+        SearchResults.CollectionChanged += (_, _) => ApplyTagFilter();
+        AvailableTags.Add("全部标签");
 
         _modeRefreshTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _modeRefreshTimer.Tick += (s, e) =>
@@ -123,7 +160,64 @@ public partial class ScriptDownloadViewModel : ObservableObject
         _modeRefreshTimer.Start();
 
         SeedRecommendations();
-        _ = LoadDailyHotRecommendationsAsync();
+        _dailyRecommendationsTask = LoadDailyHotRecommendationsAsync();
+    }
+
+    partial void OnSelectedTagChanged(string value) => ApplyTagFilter();
+
+    private void ApplyTagFilter()
+    {
+        var tags = SearchResults.Concat(HotRecommendations).Concat(MoreRecommendations)
+            .SelectMany(game => game.Tags)
+            .Where(tag => !string.IsNullOrWhiteSpace(tag))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(tag => tag, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+
+        var desiredTags = new[] { "全部标签" }.Concat(tags).ToList();
+        if (!desiredTags.Contains(SelectedTag, StringComparer.OrdinalIgnoreCase))
+        {
+            SelectedTag = "全部标签";
+            return;
+        }
+        // Incremental edits preserve the selected ComboBox item while metadata
+        // streams in; clearing the collection would bounce the selection.
+        for (var index = AvailableTags.Count - 1; index >= 0; index--)
+        {
+            if (!desiredTags.Contains(AvailableTags[index]))
+                AvailableTags.RemoveAt(index);
+        }
+        for (var index = 0; index < desiredTags.Count; index++)
+        {
+            if (index < AvailableTags.Count && AvailableTags[index] == desiredTags[index])
+                continue;
+            var oldIndex = AvailableTags.IndexOf(desiredTags[index]);
+            if (oldIndex >= 0)
+                AvailableTags.Move(oldIndex, index);
+            else
+                AvailableTags.Insert(index, desiredTags[index]);
+        }
+
+        var filtered = string.Equals(SelectedTag, "全部标签", StringComparison.OrdinalIgnoreCase)
+            ? SearchResults
+            : SearchResults.Where(game => game.Tags.Contains(SelectedTag, StringComparer.OrdinalIgnoreCase));
+        FilteredSearchResults.Clear();
+        foreach (var game in filtered)
+            FilteredSearchResults.Add(game);
+        var filteredHot = string.Equals(SelectedTag, "全部标签", StringComparison.OrdinalIgnoreCase)
+            ? HotRecommendations
+            : HotRecommendations.Where(game => game.Tags.Contains(SelectedTag, StringComparer.OrdinalIgnoreCase));
+        FilteredHotRecommendations.Clear();
+        foreach (var game in filteredHot)
+            FilteredHotRecommendations.Add(game);
+        var filteredMore = string.Equals(SelectedTag, "全部标签", StringComparison.OrdinalIgnoreCase)
+            ? MoreRecommendations
+            : MoreRecommendations.Where(game => game.Tags.Contains(SelectedTag, StringComparer.OrdinalIgnoreCase));
+        FilteredMoreRecommendations.Clear();
+        foreach (var game in filteredMore)
+            FilteredMoreRecommendations.Add(game);
+        NotifyHotRecommendationSlots();
+        OnPropertyChanged(nameof(FilteredSearchResultCount));
     }
 
     public sealed record FoundGame(
@@ -135,6 +229,11 @@ public partial class ScriptDownloadViewModel : ObservableObject
         string Price)
     {
         public bool IsFree { get; init; }
+        public bool IsGame { get; init; }
+        public IReadOnlyList<string> Tags { get; init; } = Array.Empty<string>();
+        public IReadOnlyList<string> GameplayTags { get; init; } = Array.Empty<string>();
+        public IReadOnlyList<GameFeature> Features { get; init; } = Array.Empty<GameFeature>();
+        public GameReviewSummary Review { get; init; } = GameReviewSummary.Unavailable;
 
         public string SecondaryName => string.Equals(Name, EnglishName, StringComparison.OrdinalIgnoreCase)
             ? string.Empty
@@ -160,9 +259,38 @@ public partial class ScriptDownloadViewModel : ObservableObject
 
     public sealed record CarouselPageIndicator(int Index, bool IsActive);
 
+    public sealed record GameFeature(string Key, string Label, string IconPath, string CutoutPath);
+
+    public sealed record GameReviewSummary(string Description, int Positive, int Negative)
+    {
+        public static GameReviewSummary Unavailable { get; } = new("暂无评测", 0, 0);
+        public GameHotReview? HotReview { get; init; }
+        public int Total => Positive + Negative;
+        public bool HasReviews => Total > 0;
+        public double Stars => HasReviews ? Math.Round(5d * Positive / Total, 1) : 0;
+        public string StarsLabel => HasReviews ? $"{Stars:0.0}/5" : "";
+        public IReadOnlyList<bool> StarSlots => Enumerable.Range(0, 5)
+            .Select(index => index < (int)Math.Round(Stars, MidpointRounding.AwayFromZero)).ToArray();
+        public bool HasHotReview => HotReview is not null;
+        public string CountLabel => Total >= 10000
+            ? $"{Total / 10000d:0.#}万条"
+            : Total > 0 ? $"{Total:N0}条" : "";
+        public string Tooltip => HasReviews
+            ? $"Steam 玩家评测：{Positive:N0} 条好评、{Negative:N0} 条差评。星级按好评率折算，非 Steam 官方星级。"
+            : "Steam 暂无可用评测";
+    }
+
+    public sealed record GameHotReview(string Text, int HelpfulVotes)
+    {
+        public string Excerpt => Text.Length > 94 ? Text[..94].TrimEnd() + "…" : Text;
+        public string HelpfulLabel => HelpfulVotes > 0 ? $"{HelpfulVotes:N0} 人觉得有帮助" : "";
+    }
+
     private sealed record StoreSearchItem(int AppId, string Name, string CoverUrl);
     private sealed record AliasSearchItem(int AppId, string ChineseName, string EnglishName);
-    private sealed record AppDetails(string? Name, string? ReleaseDate, string? Price, string? HeaderImage, bool IsFree);
+    private sealed record AppDetails(string? Name, string? ReleaseDate, string? Price, string? HeaderImage,
+        bool IsFree, IReadOnlyList<string> Tags, IReadOnlyList<string> GameplayTags,
+        IReadOnlyList<GameFeature> Features, string? Type, bool IsSoftware);
     private sealed record ExtractedLuaResult(int FileCount, HashSet<int> AppIds);
     private sealed record DailyHotGamesCache(string Date, List<int> AppIds);
 
@@ -196,17 +324,46 @@ public partial class ScriptDownloadViewModel : ObservableObject
     }
 
     private static FoundGame CreateRecommendation((int AppId, string Name, string EnglishName) item) =>
-        new(item.AppId, item.Name, item.EnglishName, GetFallbackCoverUrl(item.AppId), "正在获取发售时间", "正在获取价格");
+        new(item.AppId, item.Name, item.EnglishName, GetFallbackCoverUrl(item.AppId), "正在获取发售时间", "正在获取价格")
+        { IsGame = true };
+
+    private static bool IsRecommendationGame(FoundGame game) =>
+        game.IsGame && !game.IsFree && !game.Name.StartsWith("App ", StringComparison.Ordinal);
 
     private async Task LoadDailyHotRecommendationsAsync()
     {
         try
         {
             var hotAppIds = await GetDailyHotAppIdsAsync();
-            if (hotAppIds.Count > 0)
+            var discoveryAppIds = await GetDiscoveryAppIdsAsync();
+            var seedAppIds = HotRecommendationSeeds
+                .Concat(MoreRecommendationSeeds)
+                .Select(item => item.AppId);
+            var mixedAppIds = new List<int>();
+            for (var index = 0; index < Math.Max(discoveryAppIds.Count, hotAppIds.Count); index++)
             {
-                var candidates = hotAppIds
-                    .Take(20)
+                if (index < discoveryAppIds.Count)
+                    mixedAppIds.Add(discoveryAppIds[index]);
+                if (index < hotAppIds.Count)
+                    mixedAppIds.Add(hotAppIds[index]);
+            }
+            var pool = mixedAppIds
+                .Concat(seedAppIds)
+                .Distinct()
+                .ToList();
+
+            // Rotate the discovery pool by day so a stable Steam chart does not
+            // produce the same first six cards forever.
+            if (pool.Count > 1)
+            {
+                var offset = DateTime.Today.DayOfYear % pool.Count;
+                pool = pool.Skip(offset).Concat(pool.Take(offset)).ToList();
+            }
+
+            if (pool.Count > 0)
+            {
+                var candidates = pool
+                    .Take(24)
                     .Select(appId => new FoundGame(
                         appId,
                         $"App {appId}",
@@ -217,16 +374,25 @@ public partial class ScriptDownloadViewModel : ObservableObject
                     .ToList();
                 var enriched = await EnrichRecommendationsAsync(candidates);
                 var validGames = enriched
-                    .Where(game => !game.IsFree && !game.Name.StartsWith("App ", StringComparison.Ordinal))
-                    .Take(6)
+                    .Where(IsRecommendationGame)
+                    .Take(14)
                     .ToList();
 
                 if (validGames.Count >= 5)
                 {
                     HotRecommendations.Clear();
-                    foreach (var game in validGames)
+                    foreach (var game in validGames.Take(6))
                         HotRecommendations.Add(game);
-                    await RefreshMoreRecommendationMetadataAsync();
+                    var more = validGames.Skip(6).Take(8).ToList();
+                    if (more.Count < 4)
+                    {
+                        var fallback = MoreRecommendationSeeds
+                            .Select(CreateRecommendation)
+                            .Where(game => !validGames.Any(item => item.AppId == game.AppId))
+                            .ToList();
+                        more.AddRange(await EnrichRecommendationsAsync(fallback));
+                    }
+                    ResetRecommendations(MoreRecommendations, more.Where(IsRecommendationGame).Take(8));
                     return;
                 }
             }
@@ -237,6 +403,53 @@ public partial class ScriptDownloadViewModel : ObservableObject
         }
 
         await RefreshRecommendationMetadataAsync();
+    }
+
+    private async Task<List<int>> GetDiscoveryAppIdsAsync()
+    {
+        try
+        {
+            const string url = "https://store.steampowered.com/api/featuredcategories/?cc=cn&l=schinese";
+            var json = await _httpClientProvider.SendWithProxyRetryAsync(
+                "script-steam-featured-discovery",
+                TimeSpan.FromSeconds(10),
+                client => client.GetStringAsync(url),
+                ConfigureSteamStoreHeaders);
+            using var document = JsonDocument.Parse(json);
+            var sections = new[] { "new_releases", "specials", "coming_soon", "top_sellers", "popular_new_releases" };
+            var sectionIds = new List<List<int>>();
+            foreach (var section in sections)
+            {
+                if (!document.RootElement.TryGetProperty(section, out var node) ||
+                    !node.TryGetProperty("items", out var items) ||
+                    items.ValueKind != JsonValueKind.Array)
+                    continue;
+                var ids = new List<int>();
+                foreach (var item in items.EnumerateArray())
+                {
+                    if (item.TryGetProperty("id", out var id) && id.TryGetInt32(out var appId) && appId > 0)
+                        ids.Add(appId);
+                }
+                sectionIds.Add(ids);
+            }
+            // Round-robin prevents the 30-item new-release section from crowding
+            // the discovery pool before specials and best sellers are considered.
+            var interleaved = new List<int>();
+            var maximumLength = sectionIds.Count == 0 ? 0 : sectionIds.Max(ids => ids.Count);
+            for (var index = 0; index < maximumLength; index++)
+            {
+                foreach (var ids in sectionIds)
+                {
+                    if (index < ids.Count)
+                        interleaved.Add(ids[index]);
+                }
+            }
+            return interleaved.Distinct().Take(40).ToList();
+        }
+        catch
+        {
+            return new List<int>();
+        }
     }
 
     private async Task<List<int>> GetDailyHotAppIdsAsync()
@@ -311,8 +524,8 @@ public partial class ScriptDownloadViewModel : ObservableObject
             var moreTask = EnrichRecommendationsAsync(MoreRecommendations.ToList());
             await Task.WhenAll(hotTask, moreTask);
 
-            ResetRecommendations(HotRecommendations, (await hotTask).Where(game => !game.IsFree));
-            ResetRecommendations(MoreRecommendations, (await moreTask).Where(game => !game.IsFree));
+            ResetRecommendations(HotRecommendations, (await hotTask).Where(IsRecommendationGame));
+            ResetRecommendations(MoreRecommendations, (await moreTask).Where(IsRecommendationGame));
         }
         catch
         {
@@ -325,7 +538,7 @@ public partial class ScriptDownloadViewModel : ObservableObject
         try
         {
             var enriched = await EnrichRecommendationsAsync(MoreRecommendations.ToList());
-            ResetRecommendations(MoreRecommendations, enriched.Where(game => !game.IsFree));
+            ResetRecommendations(MoreRecommendations, enriched.Where(IsRecommendationGame));
         }
         catch
         {
@@ -333,13 +546,24 @@ public partial class ScriptDownloadViewModel : ObservableObject
         }
     }
 
-    private async Task<List<FoundGame>> EnrichRecommendationsAsync(List<FoundGame> games)
+    private async Task<List<FoundGame>> EnrichRecommendationsAsync(List<FoundGame> games, bool includeAliases = true)
     {
+        using var limiter = new SemaphoreSlim(6);
         var metadataTasks = games.Select(async game =>
         {
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            var details = await GetAppDetailsAsync(game.AppId, "schinese", cts.Token);
-            return (Game: game, Details: details);
+            await limiter.WaitAsync();
+            try
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                var detailsTask = GetAppDetailsAsync(game.AppId, "schinese", cts.Token);
+                var reviewTask = GetReviewSummaryAsync(game.AppId, cts.Token);
+                await Task.WhenAll(detailsTask, reviewTask);
+                return (Game: game, Details: await detailsTask, Review: await reviewTask);
+            }
+            finally
+            {
+                limiter.Release();
+            }
         });
 
         var metadata = await Task.WhenAll(metadataTasks);
@@ -348,7 +572,9 @@ public partial class ScriptDownloadViewModel : ObservableObject
                            !ContainsChinese(item.Details?.Name ?? string.Empty))
             .Select(item => item.Game.AppId)
             .ToList();
-        var chineseAliases = await TryGetChineseAliasesByAppIdsAsync(aliasCandidates);
+        var chineseAliases = includeAliases
+            ? await TryGetChineseAliasesByAppIdsAsync(aliasCandidates)
+            : new Dictionary<int, string>();
 
         return metadata.Select(item =>
         {
@@ -371,9 +597,233 @@ public partial class ScriptDownloadViewModel : ObservableObject
                 CoverUrl = details?.HeaderImage ?? game.CoverUrl,
                 ReleaseDate = details?.ReleaseDate ?? "发售时间未知",
                 Price = details?.Price ?? "暂无价格",
-                IsFree = details?.IsFree ?? game.IsFree
+                IsFree = details?.IsFree ?? game.IsFree,
+                IsGame = details is null ? game.IsGame :
+                    string.Equals(details.Type, "game", StringComparison.OrdinalIgnoreCase) && !details.IsSoftware,
+                Tags = details?.Tags ?? game.Tags,
+                GameplayTags = details?.GameplayTags ?? game.GameplayTags,
+                Features = details?.Features ?? game.Features,
+                Review = item.Review
             };
         }).ToList();
+    }
+
+    private async Task<GameReviewSummary> GetReviewSummaryAsync(int appId, CancellationToken ct)
+    {
+        if (_reviewCache.TryGetValue(appId, out var cached))
+            return cached;
+
+        try
+        {
+            var client = _httpClientProvider.GetClient(
+                "script-steam-review-summary", TimeSpan.FromSeconds(6), ConfigureSteamStoreHeaders);
+            var hotReviewTask = GetHotReviewAsync(client, appId, ct);
+            var url = $"https://store.steampowered.com/appreviews/{appId}" +
+                      "?json=1&filter=summary&language=all&purchase_type=all&num_per_page=0&l=schinese";
+            var json = await client.GetStringAsync(url, ct);
+            var summary = ParseReviewSummary(json) with { HotReview = await hotReviewTask };
+            if (summary.HasReviews)
+                _reviewCache.TryAdd(appId, summary);
+            return summary;
+        }
+        catch
+        {
+            return GameReviewSummary.Unavailable;
+        }
+    }
+
+    private static async Task<GameHotReview?> GetHotReviewAsync(HttpClient client, int appId, CancellationToken ct)
+    {
+        // Steam 的 all 筛选按有用程度排序；优先选简体中文，未找到再退到所有语言。
+        foreach (var language in new[] { "schinese", "all" })
+        {
+            try
+            {
+                var url = $"https://store.steampowered.com/appreviews/{appId}" +
+                          $"?json=1&filter=all&language={language}&purchase_type=all&num_per_page=1&l=schinese";
+                var hotReview = ParseHotReview(await client.GetStringAsync(url, ct));
+                if (hotReview is not null)
+                    return hotReview;
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                return null;
+            }
+            catch
+            {
+                // 热评不可用时保留已获取的总体评分，不阻塞推荐卡片。
+            }
+        }
+        return null;
+    }
+
+    private static GameHotReview? ParseHotReview(string json)
+    {
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+        if (!root.TryGetProperty("success", out var success) || success.GetInt32() != 1 ||
+            !root.TryGetProperty("reviews", out var reviews) || reviews.ValueKind != JsonValueKind.Array)
+            return null;
+
+        foreach (var review in reviews.EnumerateArray())
+        {
+            if (!review.TryGetProperty("review", out var textElement) ||
+                textElement.ValueKind != JsonValueKind.String)
+                continue;
+            var text = string.Join(" ", (textElement.GetString() ?? "")
+                .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+            if (text.Length < 8)
+                continue;
+            var votes = review.TryGetProperty("votes_up", out var votesElement) &&
+                        votesElement.TryGetInt32(out var helpfulVotes) ? Math.Max(0, helpfulVotes) : 0;
+            return new GameHotReview(text, votes);
+        }
+        return null;
+    }
+
+    private static GameReviewSummary ParseReviewSummary(string json)
+    {
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+        if (!root.TryGetProperty("success", out var success) || success.GetInt32() != 1 ||
+            !root.TryGetProperty("query_summary", out var summary))
+            return GameReviewSummary.Unavailable;
+
+        var positive = summary.TryGetProperty("total_positive", out var positiveElement) &&
+                       positiveElement.TryGetInt32(out var positiveCount) ? positiveCount : 0;
+        var negative = summary.TryGetProperty("total_negative", out var negativeElement) &&
+                       negativeElement.TryGetInt32(out var negativeCount) ? negativeCount : 0;
+        if (positive + negative <= 0)
+            return GameReviewSummary.Unavailable;
+
+        var description = summary.TryGetProperty("review_score_desc", out var descriptionElement)
+            ? descriptionElement.GetString() : null;
+        return new GameReviewSummary(
+            string.IsNullOrWhiteSpace(description) ? "玩家评价" : description,
+            positive, negative);
+    }
+
+    [RelayCommand]
+    private async Task LoadMoreRecommendationsAsync(bool automatic)
+    {
+        if (HasStartedSearch || IsLoadingRecommendations || !HasMoreRecommendations ||
+            (automatic && !CanAutoLoadRecommendations))
+            return;
+
+        // A failed automatic request must not be started again by every wheel
+        // event. A deliberate button click is the only retry path.
+        if (!automatic)
+            CanAutoLoadRecommendations = true;
+        IsLoadingRecommendations = true;
+        RecommendationLoadStatus = "正在发现更多游戏…";
+        try
+        {
+            await _dailyRecommendationsTask;
+            if (_pendingRecommendationGames.Count == 0)
+            {
+                // Enrich only a small batch per scroll. Requesting details for
+                // every item on a 25-result page made the footer wait too long.
+                for (var batch = 0; batch < 3 && _pendingRecommendationGames.Count == 0; batch++)
+                {
+                    if (_pendingRecommendationAppIds.Count == 0)
+                    {
+                        if (!_hasMoreRecommendationSource)
+                            break;
+                        var (appIds, totalCount) = await GetRecommendationPageAsync(_recommendationSearchOffset);
+                        _recommendationSearchOffset += RecommendationPageSize;
+                        _hasMoreRecommendationSource = appIds.Count > 0 && _recommendationSearchOffset < totalCount;
+                        var knownIds = HotRecommendations.Select(game => game.AppId)
+                            .Concat(MoreRecommendations.Select(game => game.AppId))
+                            .Concat(_pendingRecommendationGames.Select(game => game.AppId))
+                            .Concat(_pendingRecommendationAppIds).ToHashSet();
+                        foreach (var appId in appIds.Where(knownIds.Add))
+                            _pendingRecommendationAppIds.Enqueue(appId);
+                    }
+
+                    var candidateIds = new List<int>();
+                    while (candidateIds.Count < 8 && _pendingRecommendationAppIds.TryDequeue(out var appId))
+                        candidateIds.Add(appId);
+                    var candidates = candidateIds
+                        .Select(appId => new FoundGame(appId, $"App {appId}", string.Empty,
+                            GetFallbackCoverUrl(appId), "正在获取发售时间", "正在获取价格"))
+                        .ToList();
+                    var games = (await EnrichRecommendationsAsync(candidates, includeAliases: false))
+                        .Where(IsRecommendationGame);
+                    foreach (var game in games)
+                        _pendingRecommendationGames.Enqueue(game);
+                }
+            }
+
+            // Mount at most one row group at a time so each scroll step stays responsive.
+            _suspendRecommendationFiltering = true;
+            var added = 0;
+            try
+            {
+                while (added < 12 && _pendingRecommendationGames.TryDequeue(out var game))
+                {
+                    MoreRecommendations.Add(game);
+                    added++;
+                }
+            }
+            finally
+            {
+                _suspendRecommendationFiltering = false;
+            }
+            if (added > 0)
+                ApplyTagFilter();
+            HasMoreRecommendations = _pendingRecommendationGames.Count > 0 ||
+                                     _pendingRecommendationAppIds.Count > 0 || _hasMoreRecommendationSource;
+            RecommendationLoadStatus = HasMoreRecommendations
+                ? "继续向下探索更多游戏"
+                : "已浏览完当前可用游戏";
+        }
+        catch (Exception exception)
+        {
+            CanAutoLoadRecommendations = false;
+            RecommendationLoadStatus = exception switch
+            {
+                TaskCanceledException or TimeoutException => "连接超时，点击重试",
+                HttpRequestException => "网络连接中断，点击重试",
+                _ => "推荐加载失败，点击重试"
+            };
+            StatusMessage = $"推荐加载失败：{exception.Message}";
+        }
+        finally
+        {
+            IsLoadingRecommendations = false;
+        }
+    }
+
+    private async Task<(List<int> AppIds, int TotalCount)> GetRecommendationPageAsync(int offset)
+    {
+        var url = $"https://store.steampowered.com/search/results/?query=&start={offset}&count={RecommendationPageSize}" +
+                  "&sort_by=Reviews_DESC&category1=998&cc=cn&l=schinese&infinite=1";
+        var json = await _httpClientProvider.SendWithProxyRetryAsync(
+            "script-steam-game-feed",
+            TimeSpan.FromSeconds(12),
+            client => client.GetStringAsync(url),
+            ConfigureSteamStoreHeaders);
+        return ParseRecommendationPage(json);
+    }
+
+    private static (List<int> AppIds, int TotalCount) ParseRecommendationPage(string json)
+    {
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+        if (!root.TryGetProperty("success", out var success) || success.GetInt32() != 1 ||
+            !root.TryGetProperty("results_html", out var htmlElement) ||
+            !root.TryGetProperty("total_count", out var totalElement))
+            throw new FormatException("Steam 推荐列表响应不完整");
+
+        var html = new HtmlDocument();
+        html.LoadHtml(htmlElement.GetString() ?? string.Empty);
+        var appIds = (html.DocumentNode.SelectNodes("//*[@data-ds-appid]") ?? Enumerable.Empty<HtmlNode>())
+            .Select(node => node.GetAttributeValue("data-ds-appid", string.Empty))
+            .Select(value => int.TryParse(value, out var appId) ? appId : 0)
+            .Where(appId => appId > 0)
+            .Distinct()
+            .ToList();
+        return (appIds, totalElement.GetInt32());
     }
 
     private async Task<Dictionary<int, string>> TryGetChineseAliasesByAppIdsAsync(IEnumerable<int> appIds)
@@ -448,11 +898,11 @@ public partial class ScriptDownloadViewModel : ObservableObject
     [RelayCommand]
     private async Task ShowNextRecommendationsAsync()
     {
-        if (_isCarouselSwitching || HotRecommendations.Count < 2) return;
+        if (_isCarouselSwitching || FilteredHotRecommendations.Count < 2) return;
         _isCarouselSwitching = true;
         try
         {
-            _hotRecommendationStartIndex = (_hotRecommendationStartIndex + 1) % HotRecommendations.Count;
+            _hotRecommendationStartIndex = (_hotRecommendationStartIndex + 1) % FilteredHotRecommendations.Count;
             NotifyHotRecommendationSlots();
             await Task.Delay(180);
         }
@@ -465,12 +915,12 @@ public partial class ScriptDownloadViewModel : ObservableObject
     [RelayCommand]
     private async Task ShowPreviousRecommendationsAsync()
     {
-        if (_isCarouselSwitching || HotRecommendations.Count < 2) return;
+        if (_isCarouselSwitching || FilteredHotRecommendations.Count < 2) return;
         _isCarouselSwitching = true;
         try
         {
             _hotRecommendationStartIndex =
-                (_hotRecommendationStartIndex - 1 + HotRecommendations.Count) % HotRecommendations.Count;
+                (_hotRecommendationStartIndex - 1 + FilteredHotRecommendations.Count) % FilteredHotRecommendations.Count;
             NotifyHotRecommendationSlots();
             await Task.Delay(180);
         }
@@ -482,17 +932,17 @@ public partial class ScriptDownloadViewModel : ObservableObject
 
     private FoundGame? GetHotRecommendationSlot(int offset)
     {
-        if (HotRecommendations.Count == 0) return null;
-        var normalizedStart = _hotRecommendationStartIndex % HotRecommendations.Count;
-        return HotRecommendations[(normalizedStart + offset) % HotRecommendations.Count];
+        if (FilteredHotRecommendations.Count <= offset) return null;
+        var normalizedStart = _hotRecommendationStartIndex % FilteredHotRecommendations.Count;
+        return FilteredHotRecommendations[(normalizedStart + offset) % FilteredHotRecommendations.Count];
     }
 
     private void NotifyHotRecommendationSlots()
     {
-        if (HotRecommendations.Count == 0)
+        if (FilteredHotRecommendations.Count == 0)
             _hotRecommendationStartIndex = 0;
-        else if (_hotRecommendationStartIndex >= HotRecommendations.Count)
-            _hotRecommendationStartIndex %= HotRecommendations.Count;
+        else if (_hotRecommendationStartIndex >= FilteredHotRecommendations.Count)
+            _hotRecommendationStartIndex %= FilteredHotRecommendations.Count;
 
         OnPropertyChanged(nameof(HotRecommendationSlot1));
         OnPropertyChanged(nameof(HotRecommendationSlot2));
@@ -501,7 +951,7 @@ public partial class ScriptDownloadViewModel : ObservableObject
         OnPropertyChanged(nameof(HotRecommendationSlot5));
 
         HotRecommendationPages.Clear();
-        for (var index = 0; index < HotRecommendations.Count; index++)
+        for (var index = 0; index < FilteredHotRecommendations.Count; index++)
         {
             HotRecommendationPages.Add(new CarouselPageIndicator(
                 index,
@@ -564,7 +1014,12 @@ public partial class ScriptDownloadViewModel : ObservableObject
                         englishDetails?.Name ?? string.Empty,
                         chineseDetails?.HeaderImage ?? englishDetails?.HeaderImage ?? GetFallbackCoverUrl(appId),
                         chineseDetails?.ReleaseDate ?? englishDetails?.ReleaseDate ?? "发售日未知",
-                        chineseDetails?.Price ?? englishDetails?.Price ?? "暂无价格"));
+                        chineseDetails?.Price ?? englishDetails?.Price ?? "暂无价格")
+                    {
+                        Tags = chineseDetails?.Tags ?? englishDetails?.Tags ?? Array.Empty<string>(),
+                        GameplayTags = chineseDetails?.GameplayTags ?? englishDetails?.GameplayTags ?? Array.Empty<string>(),
+                        Features = chineseDetails?.Features ?? englishDetails?.Features ?? Array.Empty<GameFeature>()
+                    });
                     AddLog($"✅ 找到：{displayName} (AppID: {appId})");
                     StatusMessage = $"找到：{displayName}";
                 }
@@ -706,7 +1161,13 @@ public partial class ScriptDownloadViewModel : ObservableObject
                 ? headerImageElement.GetString()
                 : null;
 
-            return new AppDetails(name, releaseDate, price, headerImage, isFree);
+            var tags = ParseAppTags(data);
+            var type = data.TryGetProperty("type", out var typeElement) ? typeElement.GetString() : null;
+            // Some software, such as Wallpaper Engine, reports type="game";
+            // Steam's software-specific genre IDs are the reliable second gate.
+            var isSoftware = HasSoftwareGenre(data);
+            return new AppDetails(name, releaseDate, price, headerImage, isFree,
+                tags.FilterTags, tags.GameplayTags, tags.Features, type, isSoftware);
         }
         catch
         {
@@ -718,6 +1179,115 @@ public partial class ScriptDownloadViewModel : ObservableObject
             _httpClientProvider.Reset(requestName);
         }
     }
+
+    private sealed record ParsedGameTags(IReadOnlyList<string> FilterTags,
+        IReadOnlyList<string> GameplayTags, IReadOnlyList<GameFeature> Features);
+
+    private static ParsedGameTags ParseAppTags(JsonElement data)
+    {
+        var gameplay = new List<string>();
+        if (data.TryGetProperty("genres", out var genres) && genres.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var genre in genres.EnumerateArray())
+            {
+                var id = ReadSteamTagId(genre);
+                if (id is 23 or 37 or 70 || // Indie, Free to Play, Early Access are not gameplay genres.
+                    !genre.TryGetProperty("description", out var description))
+                    continue;
+                var label = description.GetString();
+                if (!string.IsNullOrWhiteSpace(label) &&
+                    !gameplay.Contains(label, StringComparer.OrdinalIgnoreCase))
+                    gameplay.Add(label);
+                if (gameplay.Count == 4) break; // Keep the card scannable.
+            }
+        }
+
+        var features = new Dictionary<string, GameFeature>(StringComparer.Ordinal);
+        if (data.TryGetProperty("categories", out var categories) && categories.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var category in categories.EnumerateArray())
+            {
+                var key = FeatureKeyForCategory(ReadSteamTagId(category));
+                if (key is not null && !features.ContainsKey(key))
+                    features.Add(key, CreateFeature(key));
+            }
+        }
+        // One pictogram per capability, up to seven. Accessibility sub-options
+        // and controller variants collapse instead of flooding the card.
+        var visibleFeatures = features.Values
+            .OrderBy(feature => FeaturePriority(feature.Key))
+            .Take(7)
+            .ToList();
+        var filterTags = gameplay.Concat(visibleFeatures.Select(feature => feature.Label))
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        return new ParsedGameTags(filterTags, gameplay, visibleFeatures);
+    }
+
+    private static int ReadSteamTagId(JsonElement item) =>
+        item.TryGetProperty("id", out var id) && int.TryParse(id.ToString(), out var value) ? value : -1;
+
+    private static bool HasSoftwareGenre(JsonElement data) =>
+        data.TryGetProperty("genres", out var genres) &&
+        genres.ValueKind == JsonValueKind.Array &&
+        genres.EnumerateArray().Any(genre => ReadSteamTagId(genre) is >= 51 and <= 60);
+
+    private static string? FeatureKeyForCategory(int id) => id switch
+    {
+        18 or 28 or 55 or 56 or 57 or 58 => "controller",
+        2 => "solo",
+        1 or 27 => "multiplayer",
+        9 or 38 or 48 => "coop",
+        22 => "achievement",
+        23 => "cloud",
+        30 => "workshop",
+        41 or 42 or 43 or 44 => "remote",
+        62 => "family",
+        29 => "cards",
+        31 or 32 => "vr",
+        64 or 65 or 66 or 67 or 68 or 69 or 70 or 74 or 78 or 79 => "accessibility",
+        _ => null
+    };
+
+    private static int FeaturePriority(string key) => key switch
+    {
+        "controller" => 0, "solo" => 1, "multiplayer" => 2, "coop" => 3,
+        "achievement" => 4, "cloud" => 5, "workshop" => 6,
+        "remote" => 7, "family" => 8, "cards" => 9, "vr" => 10,
+        _ => 11
+    };
+
+    // All capability pictograms are solid 24x24 silhouettes. The cutout is
+    // rendered in the chip colour so controls remain legible at 16 px.
+    private static GameFeature CreateFeature(string key) => key switch
+    {
+        "controller" => new(key, "支持手柄",
+            "M7,7 H17 C20,7 22,9.5 22,13.5 C22,17.5 20,20 17,20 C15,20 14,18 12,18 C10,18 9,20 7,20 C4,20 2,17.5 2,13.5 C2,9.5 4,7 7,7 Z",
+            "M7,10 H9 V12 H11 V14 H9 V16 H7 V14 H5 V12 H7 Z M16,10 A1.2,1.2 0 1 1 16,12.4 A1.2,1.2 0 1 1 16,10 Z M18,13 A1.2,1.2 0 1 1 18,15.4 A1.2,1.2 0 1 1 18,13 Z"),
+        "solo" => new(key, "单人游玩",
+            "M12,3 A4,4 0 1 1 12,11 A4,4 0 1 1 12,3 Z M4,21 C4,16 7,13 12,13 C17,13 20,16 20,21 Z", ""),
+        "multiplayer" => new(key, "多人游玩",
+            "M8,4 A3,3 0 1 1 8,10 A3,3 0 1 1 8,4 Z M16,4 A3,3 0 1 1 16,10 A3,3 0 1 1 16,4 Z M1,20 C1,15 3.5,12 8,12 C10,12 11,12.7 12,14 C13,12.7 14,12 16,12 C20.5,12 23,15 23,20 Z", ""),
+        "coop" => new(key, "合作游玩",
+            "M7,4 A3,3 0 1 1 7,10 A3,3 0 1 1 7,4 Z M17,4 A3,3 0 1 1 17,10 A3,3 0 1 1 17,4 Z M1,20 C1,15.5 3,13 7,13 H10 L12,15 L14,13 H17 C21,13 23,15.5 23,20 Z", ""),
+        "achievement" => new(key, "Steam 成就",
+            "M12,2 L14.9,8.1 L21.6,9 L16.8,13.7 L18,20.4 L12,17.2 L6,20.4 L7.2,13.7 L2.4,9 L9.1,8.1 Z", ""),
+        "cloud" => new(key, "Steam 云存档",
+            "M6,19 C3.2,19 2,17.1 2,14.8 C2,12.5 3.7,10.8 6,10.6 C6.8,6.9 9.1,5 12.3,5 C16,5 18.5,7.6 18.7,11 C21,11.3 22,12.9 22,15 C22,17.4 20.2,19 17.5,19 Z", ""),
+        "workshop" => new(key, "创意工坊",
+            "M20.5,3 C18,2 15.9,2.8 14.5,4.4 C13.1,6 12.9,8.1 13.7,10 L4,19.7 C3.2,20.5 2,20.5 1.3,19.8 C0.6,19.1 0.6,17.9 1.4,17.1 L11,7.5 C10.9,5.1 12.2,3.2 14.2,2.2 C16.1,1.2 18.4,1.4 20,2.5 L16.8,5.7 L18.3,7.2 Z", ""),
+        "remote" => new(key, "远程同乐",
+            "M2,4 H22 V17 H2 Z M9,19 H15 V21 H9 Z M6,21 H18 V22 H6 Z",
+            "M10,8 L16,10.5 L10,13 Z"),
+        "family" => new(key, "家庭共享",
+            "M12,2 L22,10 H20 V21 H4 V10 H2 Z M12,11 A2.5,2.5 0 1 1 12,16 A2.5,2.5 0 1 1 12,11 Z", ""),
+        "cards" => new(key, "Steam 集换式卡牌",
+            "M4,3 H18 V17 H4 Z M7,6 H21 V20 H7 Z", "M9,9 H16 V11 H9 Z"),
+        "vr" => new(key, "VR 支持",
+            "M2,8 H22 V16 C22,18 20,19 18,19 H15 L12,16 L9,19 H6 C4,19 2,18 2,16 Z",
+            "M5,11 H10 V14 H5 Z M14,11 H19 V14 H14 Z"),
+        _ => new(key, "无障碍选项",
+            "M12,2 A2,2 0 1 1 12,6 A2,2 0 1 1 12,2 Z M3,7 H21 V9 L15,10 V21 H12.5 V15 H11.5 V21 H9 V10 L3,9 Z", "")
+    };
 
     private async Task SearchByNameAsync(string name, CancellationToken ct)
     {
@@ -778,7 +1348,12 @@ public partial class ScriptDownloadViewModel : ObservableObject
                 englishName,
                 coverUrl,
                 details?.ReleaseDate ?? "发售日未知",
-                details?.Price ?? "暂无价格"));
+                details?.Price ?? "暂无价格")
+            {
+                Tags = details?.Tags ?? Array.Empty<string>(),
+                GameplayTags = details?.GameplayTags ?? Array.Empty<string>(),
+                Features = details?.Features ?? Array.Empty<GameFeature>()
+            });
         }
 
         var aliasNote = aliasResults.Count > 0 ? $"，其中中文别名匹配 {aliasResults.Count} 个" : string.Empty;

@@ -9,6 +9,6 @@
     <AssemblyName>MJJsteamtools-Setup</AssemblyName>
     <RootNamespace>MJJsteamtools.Setup</RootNamespace>
     <ApplicationIcon>../../Assets/brand-app.ico</ApplicationIcon>
-    <Version>2.7.0</Version>
+    <Version>2.7.2</Version>
   </PropertyGroup>
 </Project>

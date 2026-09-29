@@ -5,6 +5,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Diagnostics;
 using System.Windows.Media.Imaging;
+using SteamLuaManager.Controls;
 using iNKORE.UI.WPF.Modern.Controls;
 using SteamLuaManager.Services;
 using SteamLuaManager.ViewModels;
@@ -134,21 +135,21 @@ public partial class ScriptDownloadView : UserControl
 
     private void LogScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {
-        var innerScroller = (ScrollViewer)sender;
-        if ((e.Delta > 0 && innerScroller.VerticalOffset == 0) ||
-            (e.Delta < 0 && innerScroller.VerticalOffset >= innerScroller.ScrollableHeight))
-        {
-            var parent = FindVisualParent<ScrollViewer>((DependencyObject)sender);
-            if (parent != null)
-            {
-                e.Handled = true;
-                var newArgs = new MouseWheelEventArgs(e.MouseDevice, e.Timestamp, e.Delta)
-                {
-                    RoutedEvent = UIElement.MouseWheelEvent
-                };
-                parent.RaiseEvent(newArgs);
-            }
-        }
+        if (sender is ScrollViewer innerScroller)
+            e.Handled = SmoothScrollBehavior.HandleWheel(innerScroller, e.Delta);
+    }
+
+    private void RecommendationScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
+    {
+        if (!ReferenceEquals(e.OriginalSource, RecommendationScrollViewer) || e.VerticalChange <= 0 ||
+            DataContext is not ScriptDownloadViewModel { HasStartedSearch: false,
+                HasMoreRecommendations: true, IsLoadingRecommendations: false,
+                CanAutoLoadRecommendations: true } vm)
+            return;
+
+        var remaining = e.ExtentHeight - e.VerticalOffset - e.ViewportHeight;
+        if (remaining <= Math.Max(360, e.ViewportHeight * 0.6))
+            vm.LoadMoreRecommendationsCommand.Execute(true);
     }
 
     private void OpenSteamStoreButton_Click(object sender, RoutedEventArgs e)

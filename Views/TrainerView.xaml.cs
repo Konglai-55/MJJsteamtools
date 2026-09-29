@@ -39,19 +39,7 @@ public partial class TrainerView : UserControl
     {
         if (sender is ScrollViewer innerSv)
         {
-            if ((Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift)
-            {
-                innerSv.ScrollToHorizontalOffset(innerSv.HorizontalOffset - e.Delta);
-                e.Handled = true;
-                return;
-            }
-
-            var parent = FindVisualParent<ScrollViewer>(innerSv);
-            if (parent != null)
-            {
-                parent.ScrollToVerticalOffset(parent.VerticalOffset - e.Delta);
-                e.Handled = true;
-            }
+            e.Handled = SmoothScrollBehavior.HandleWheel(innerSv, e.Delta);
         }
     }
 
